@@ -9,13 +9,19 @@ use Illuminate\Support\Facades\Cache;
 use Tests\Fixtures\TenantProbeJob;
 
 beforeEach(function () {
+    // connection=sync بيمرّر الـ job على نفس pipeline الـ worker (بما فيها الـ job middleware)
+    // عكس dispatch_sync() اللي بيستدعي handle() مباشرة من غير middleware
+    config(['queue.default' => 'sync']);
+
     $this->shopA = Shop::factory()->create();
     $this->shopB = Shop::factory()->create();
     $this->tenant = app(TenantContext::class);
 
     Category::factory()->for($this->shopA)->count(2)->create();
     Category::factory()->for($this->shopB)->count(5)->create();
+
     TenantProbeJob::$seenCount = null;
+    TenantProbeJob::$seenShopId = null;
 });
 
 it('refuses to dispatch a tenant job without tenant context', function () {
@@ -23,33 +29,30 @@ it('refuses to dispatch a tenant job without tenant context', function () {
 })->throws(MissingTenantException::class);
 
 it('runs the job inside the shop it was dispatched from', function () {
-    $job = $this->tenant->run($this->shopA, fn () => new TenantProbeJob);
+    $this->tenant->set($this->shopA);
 
-    // نفضّي السياق عشان نحاكي الـ worker (مفيش مستخدم ولا request)
-    $this->tenant->forget();
+    TenantProbeJob::dispatch();
 
-    dispatch_sync($job);
-
-    expect(TenantProbeJob::$seenCount)->toBe(2);
+    // نفضّي السياق عشان نحاكي الـ worker: الـ job لازم يكون استرجع المحل بنفسه
+    expect(TenantProbeJob::$seenShopId)->toBe($this->shopA->id)
+        ->and(TenantProbeJob::$seenCount)->toBe(2);
 });
 
-it('does not leak the tenant context after the job finishes', function () {
-    $job = $this->tenant->run($this->shopB, fn () => new TenantProbeJob);
+it('restores the previous context after the job finishes', function () {
+    $this->tenant->set($this->shopB);
 
-    $this->tenant->forget();
-    dispatch_sync($job);
+    TenantProbeJob::dispatch();
 
-    expect($this->tenant->hasShop())->toBeFalse();
+    expect($this->tenant->id())->toBe($this->shopB->id);
 });
 
 it('keeps each shop job isolated when run back to back', function () {
-    $jobA = $this->tenant->run($this->shopA, fn () => new TenantProbeJob);
-    $jobB = $this->tenant->run($this->shopB, fn () => new TenantProbeJob);
-
-    dispatch_sync($jobA);
+    $this->tenant->set($this->shopA);
+    TenantProbeJob::dispatch();
     expect(TenantProbeJob::$seenCount)->toBe(2);
 
-    dispatch_sync($jobB);
+    $this->tenant->set($this->shopB);
+    TenantProbeJob::dispatch();
     expect(TenantProbeJob::$seenCount)->toBe(5);
 });
 

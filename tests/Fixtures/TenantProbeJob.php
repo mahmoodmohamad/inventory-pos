@@ -16,6 +16,8 @@ class TenantProbeJob implements ShouldQueue
 
     public static ?int $seenCount = null;
 
+    public static ?int $seenShopId = null;
+
     public function __construct()
     {
         $this->initializeTenantAware();
@@ -23,9 +25,8 @@ class TenantProbeJob implements ShouldQueue
 
     public function handle(): void
     {
-        // حل مؤقت: نحط الـ shopId بشكل صريح قدام أي query
-        app(TenantContext::class)->run($this->shopId, function () {
-            self::$seenCount = Category::count();
-        });
+
+        self::$seenShopId = app(TenantContext::class)->id();
+        self::$seenCount = Category::count();
     }
 }
