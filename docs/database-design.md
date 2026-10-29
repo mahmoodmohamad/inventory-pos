@@ -10,25 +10,29 @@ This document distinguishes the current implementation from the planned schema. 
 
 ## 2. Current Implementation Status
 
-The following tables and models are present in the inspected project files.
+The following tables and models are present in the project files.
 
 | Table | Status | Notes |
 |---|---|---|
 | `shops` | Implemented | Shop identity, settings, currency, and active status |
 | `users` | Implemented | Authentication users with nullable `shop_id`, role, and active status |
 | `categories` | Implemented | Tenant-owned hierarchical categories |
-| `cache` | Laravel infrastructure | Application cache storage |
-| `jobs` | Laravel infrastructure | Database queue storage |
+| `vehicle_makes` | Implemented (migration + model only) | Shared catalog, no `shop_id`. No factory, seeder, or tests yet |
+| `cache`, `cache_locks` | Laravel infrastructure | Application cache storage |
+| `jobs`, `job_batches`, `failed_jobs` | Laravel infrastructure | Database queue storage |
+| `sessions`, `password_reset_tokens` | Laravel infrastructure | Authentication support |
 | `passkeys` | Laravel infrastructure | Authentication support |
 | User two-factor columns | Implemented | Authentication support |
 
-Current application models include `Shop`, `User`, and `Category`, plus the `BelongsToShop` trait and `ShopScope`.
+Current application models: `Shop`, `User`, `Category`, `VehicleMake`, plus the `BelongsToShop` trait and `ShopScope`.
+
+Current tenancy infrastructure: `TenantContext`, `SetCurrentShop` and `EnsureUserIsActive` middleware, `TenantAware` job trait with `RestoreTenant` job middleware, `TenantCache`, and the `tenantForeign()` Blueprint macro.
 
 The complete columns of Laravel infrastructure tables are outside the scope of this document.
 
 ## 3. Current Entity Relationship Diagram
 
-The following ERD describes the relationships confirmed by the inspected migrations and models.
+The following ERD describes the relationships confirmed by the migrations and models.
 
 ```mermaid
 erDiagram
@@ -52,6 +56,8 @@ erDiagram
     USERS {
         bigint id PK
         bigint shop_id FK "nullable"
+        string name
+        string email UK
         string role
         boolean is_active
     }
@@ -63,14 +69,24 @@ erDiagram
         string name
         timestamps timestamps
     }
+
+    VEHICLE_MAKES {
+        bigint id PK
+        string name
+        string slug UK
+        boolean is_active
+        timestamps timestamps
+    }
 ```
 
 Notes:
 
 - `users.shop_id` is nullable in the current migration.
+- `users.email` is unique across the whole system, not per shop, because login is by email.
 - `categories.shop_id` references `shops.id` and is not nullable.
 - `categories.parent_id` is nullable and references a category in the same shop through the composite foreign key `(shop_id, parent_id) -> categories(shop_id, id)`.
-- The ERD intentionally omits uninspected columns from Laravel infrastructure tables.
+- `vehicle_makes` is shared catalog data and has no relationships yet.
+- The ERD intentionally omits columns of Laravel infrastructure tables and some `users` columns (password, two-factor, timestamps).
 
 ## 4. Current Database Constraints
 
@@ -100,7 +116,9 @@ The tenancy migration adds:
 
 The unique `(shop_id, id)` key allows other tenant tables to reference users using composite foreign keys in future migrations.
 
-The current `User` model deliberately does not use `BelongsToShop` or `ShopScope`. Authentication must be able to load a user before a tenant context has been established. Queries that select users for shop administration must use the dedicated shop-user service and explicit shop constraints.
+The current `User` model deliberately does not use `BelongsToShop` or `ShopScope`. Authentication must be able to load a user before a tenant context has been established. Queries that select users for shop administration must use `ShopUserService` with explicit shop constraints.
+
+`role` and `shop_id` are not mass-assignable. They are set only with `forceFill()` from trusted code (`ShopRegistrationService`, `ShopUserService`).
 
 ### 4.3 Categories
 
@@ -116,6 +134,10 @@ The `categories` table contains:
 - composite self-reference `(shop_id, parent_id) -> categories(shop_id, id)`, with `RESTRICT` on delete
 
 The composite self-reference prevents a category from referencing a parent category belonging to a different shop at the database level.
+
+### 4.4 Vehicle makes
+
+The `vehicle_makes` table contains `id`, `name`, `slug` (unique), `is_active` (default `true`), and timestamps. It is shared across all shops and has no `shop_id`.
 
 ## 5. Tenant Isolation Rules
 
@@ -135,7 +157,7 @@ Use the project's `tenantForeign()` Blueprint macro where applicable. The `shop_
 
 Use `RESTRICT` for tenant foreign keys. Do not introduce `CASCADE` or `SET NULL` for tenant relationships.
 
-Polymorphic references cannot use ordinary foreign keys to enforce the referenced model's tenant ownership. Validate these references in application code and tests.
+Polymorphic references (for example `stock_movements` reference) cannot use ordinary foreign keys to enforce the referenced model's tenant ownership. Validate these references in application code and tests.
 
 ### Layer 2: Global Scope
 
@@ -154,42 +176,62 @@ The `BelongsToShop` trait:
 - Prevents changing `shop_id` during updates.
 - Checks tenant ownership during updates and deletes, including operations where global scopes have been removed.
 
+Known and intentional behavior: creating a record with an explicit `shop_id` while no tenant context is set is allowed. Factories, seeders, and tests rely on it. Production request and job paths always run with a context.
+
 These hooks complement database constraints; they do not replace them.
 
 ### Layer 4: Authorization and Validation
 
-Use policies derived from `ShopPolicy` for tenant-sensitive authorization.
+Use policies derived from `ShopPolicy` for tenant-sensitive authorization. `sameShop()` returns `denyAsNotFound()`, and `hasRole()` also checks `is_active`.
 
-Use Form Requests for input validation. `exists` and `unique` rules involving tenant-owned records must be scoped to the current shop.
+Use Form Requests for input validation. `exists` and `unique` rules involving tenant-owned records must be scoped to the current shop. The only intentionally global unique rule is `users.email`.
 
 Access to another shop's records should return 404 where required by the project authorization conventions.
 
-The `User` model is intentionally excluded from the global tenant scope. Use the dedicated `ShopUserService` for tenant-scoped user administration and policies for authorization.
+The `User` model is intentionally excluded from the global tenant scope. Use `ShopUserService` for tenant-scoped user administration and `UserPolicy` for authorization.
 
 ### Layer 5: Tests
 
-Tests should verify:
+Implemented:
 
-- Cross-shop reads do not expose records.
-- Known IDs belonging to another shop return 404 where required.
-- Cross-shop foreign keys are rejected by MySQL.
+- Cross-shop reads do not expose records (`ShopIsolationTest`).
+- Known IDs from another shop are not found and policies return 404 (`ShopIsolationTest`, `ShopPolicyTest`, `UsersPageTest`).
+- Cross-shop foreign keys are rejected by MySQL (`ShopIsolationTest`).
+- `tenantForeign()` builds the expected composite foreign key (`ShopPolicyTest`).
+- Tenant-aware jobs restore the correct tenant context, including through a real `queue:work` (`TenantQueueAndCacheTest`).
+- Cache keys include the shop ID (`TenantQueueAndCacheTest`).
+- Tenant-owned models use `BelongsToShop` (`tests/Arch/TenancyTest.php`, with an allowlist for `Shop`, `User`, `VehicleMake`).
+
+Planned:
+
 - A product from another shop cannot be inserted into an invoice.
-- Tenant-owned models use `BelongsToShop`.
-- Tenant-aware jobs restore the correct tenant context.
-- Cache keys include the shop ID.
-- Tenant-owned tables are not queried through unapproved raw `DB::table()` access.
+- Arch rule: every model whose table has `shop_id` uses `BelongsToShop`.
+- Arch rule: tenant-owned tables are not queried through raw `DB::table()` outside one designated place.
+- Isolation datasets that run over all tenant models.
+- Replace the class-based allowlist in the arch test with a `App\Models\Shared` namespace for shared catalog models.
 
 The test database must be MySQL, matching the project's test configuration.
+
+### Tenant context lifecycle
+
+`TenantContext` is registered as `scoped`, so it is reset between requests and queue jobs (including Octane or long-lived workers).
+
+- **HTTP:** `SetCurrentShop` runs in the `web` group and is prioritized before `SubstituteBindings`, so route model binding already has a tenant. It always calls `set()` or `forget()`, so a stale context never survives into the next request. `EnsureUserIsActive` logs out disabled users on their next request.
+- **Scoped execution:** `TenantContext::run($shop, $callback)` runs code inside a shop and restores the previous context in `finally`.
+- **Jobs:** use the `TenantAware` trait and call `initializeTenantAware()` in the constructor. It captures `shopId` using `idOrFail()`, so dispatching without a context throws. The `RestoreTenant` job middleware restores the context around `handle()`.
+- **Testing jobs:** `dispatch_sync()` calls `handle()` directly and does not apply job middleware. Tenant job tests must use the `sync` queue connection with `dispatch()`, or run a real `queue:work`.
+- **Cache:** use `TenantCache`. Keys are `shop:{id}:{key}`, and building a key without a context throws.
+- **Console and seeders:** there is no automatic context. Wrap tenant work in `TenantContext::run()`.
 
 ## 6. Shared Tables vs. Tenant-Owned Tables
 
 ### Shared tables
 
-The planned shared vehicle catalog does not belong to an individual shop and must not have `shop_id`:
+The shared vehicle catalog does not belong to an individual shop and must not have `shop_id`:
 
-- `vehicle_makes`
-- `vehicle_models`
-- `vehicle_variants`
+- `vehicle_makes` (implemented)
+- `vehicle_models` (planned)
+- `vehicle_variants` (planned, with `year_from` and nullable `year_to`)
 
 The planned `plans` table is also shared catalog data.
 
@@ -202,7 +244,7 @@ The target design includes:
 - `shops`
 - `users` (with the authentication-specific handling described above)
 - `subscriptions`
-- `categories`
+- `categories` (implemented)
 - `brands`
 - `products`
 - `product_fitments`
@@ -221,7 +263,7 @@ The target design includes:
 - `shop_sequences`
 - `audit_logs`
 
-This is the planned target list, not a claim that all these tables already exist.
+Only `shops`, `users`, and `categories` exist today. The rest is the planned target list.
 
 ## 7. Planned Target ERD
 
@@ -274,9 +316,9 @@ The target ERD must be updated as migrations are implemented and reviewed. Exact
 
 The following is the intended dependency order for future schema work. Existing migration filenames and their actual execution order remain authoritative for the current database.
 
-1. Shops and authentication tenancy columns.
-2. Shared vehicle catalog: makes, models, variants.
-3. Tenant catalog: categories, brands.
+1. Shops and authentication tenancy columns. (done)
+2. Shared vehicle catalog: makes (migration done), models, variants.
+3. Tenant catalog: categories (done), brands.
 4. Products and product fitments.
 5. Stock movements and inventory opening balances.
 6. Customers and customer ledger.
@@ -296,11 +338,19 @@ Use `DECIMAL(12,2)` for monetary columns. Do not use floating-point database col
 
 Invoice calculations belong in a single business-logic service. Persist calculated totals and payment balances consistently within a database transaction.
 
+### Products
+
+- Each part condition (original, commercial, imported, used) is a separate product row sharing the same `part_number`, with its own price and stock. Part-number search returns all conditions.
+- Soft deletes are used only for products, customers, and suppliers.
+- Prices come from the customer's `price_tier` (retail or wholesale). Manual override requires permission.
+
 ### Stock ledger
 
 `stock_movements` is the planned inventory ledger. `products.stock_qty` is a cached quantity that must be updated in the same transaction as its stock movement.
 
 Lock the product row with `lockForUpdate()` while performing stock updates.
+
+`shops.settings.allow_negative_stock` defaults to `true`. The cashier is warned when a sale makes stock negative.
 
 ### Weighted Average Cost
 
@@ -337,6 +387,7 @@ Use `shop_sequences` with `lockForUpdate()` inside a transaction to generate inv
 - Keep tenant business logic in services and authorization in policies.
 - Validate request data using Form Requests.
 - Cover tenant boundaries and critical business invariants with Pest tests.
+- Never pass `role` or `shop_id` through mass assignment.
 - Run `composer quality` and require exit code `0` before every commit.
 
 ## 11. Maintenance
