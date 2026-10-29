@@ -5,6 +5,7 @@ use App\Models\Category;
 use App\Models\Shop;
 use App\Support\Tenancy\TenantCache;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Tests\Fixtures\TenantProbeJob;
 
@@ -33,7 +34,6 @@ it('runs the job inside the shop it was dispatched from', function () {
 
     TenantProbeJob::dispatch();
 
-    // نفضّي السياق عشان نحاكي الـ worker: الـ job لازم يكون استرجع المحل بنفسه
     expect(TenantProbeJob::$seenShopId)->toBe($this->shopA->id)
         ->and(TenantProbeJob::$seenCount)->toBe(2);
 });
@@ -54,6 +54,23 @@ it('keeps each shop job isolated when run back to back', function () {
     $this->tenant->set($this->shopB);
     TenantProbeJob::dispatch();
     expect(TenantProbeJob::$seenCount)->toBe(5);
+});
+
+it('restores the shop from the payload when a real worker has no context', function () {
+    config(['queue.default' => 'database']);
+
+    $this->tenant->set($this->shopB);
+    TenantProbeJob::dispatch();
+
+    // محاكاة الـ worker: مفيش مستخدم ولا request ولا سياق
+    $this->tenant->forget();
+    app()->forgetScopedInstances();
+
+    Artisan::call('queue:work', ['--stop-when-empty' => true, '--tries' => 1]);
+
+    expect(TenantProbeJob::$seenShopId)->toBe($this->shopB->id)
+        ->and(TenantProbeJob::$seenCount)->toBe(5)
+        ->and(app(TenantContext::class)->hasShop())->toBeFalse();
 });
 
 it('namespaces cache keys by shop', function () {
