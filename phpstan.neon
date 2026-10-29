@@ -10,4 +10,10 @@ parameters:
         - database/
         - routes/
 
+    ignoreErrors:
+        -
+            identifier: trait.unused
+            path: app/Jobs/Concerns/TenantAware.php
+            count: 1
+
     level: 7

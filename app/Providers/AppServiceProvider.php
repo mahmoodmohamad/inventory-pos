@@ -2,10 +2,14 @@
 
 namespace App\Providers;
 
+use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\ColumnDefinition;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
@@ -15,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->scoped(TenantContext::class);
     }
 
     /**
@@ -24,6 +28,32 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerBlueprintMacros();
+    }
+
+    protected function registerBlueprintMacros(): void
+    {
+        /**
+         * Composite tenant FK: (shop_id, $column) -> ($on.shop_id, $on.id), RESTRICT دايمًا.
+         * لازم عمود shop_id يتعرّف قبلها في نفس الجدول.
+         */
+        Blueprint::macro('tenantForeign', function (string $column, ?string $on = null, bool $nullable = false): ColumnDefinition {
+            /** @var Blueprint $this */
+            $on ??= Str::plural(Str::beforeLast($column, '_id'));
+
+            $definition = $this->unsignedBigInteger($column);
+
+            if ($nullable) {
+                $definition->nullable();
+            }
+
+            $this->foreign(['shop_id', $column])
+                ->references(['shop_id', 'id'])
+                ->on($on)
+                ->restrictOnDelete();
+
+            return $definition;
+        });
     }
 
     /**
