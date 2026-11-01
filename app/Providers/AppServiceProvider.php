@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\ColumnDefinition;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -29,6 +31,16 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerBlueprintMacros();
+        $this->registerGates();
+    }
+
+    protected function registerGates(): void
+    {
+        Gate::define('manage-catalog', fn (User $user): bool => in_array(
+            strtolower($user->email),
+            config('app.platform_admins'),
+            true,
+        ));
     }
 
     protected function registerBlueprintMacros(): void

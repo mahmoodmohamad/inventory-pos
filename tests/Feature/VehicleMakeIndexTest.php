@@ -31,3 +31,16 @@ it('lists active makes with their active models ordered by name', function () {
         ->assertJsonMissing(['name' => 'Old Model'])
         ->assertJsonMissingPath('data.0.created_at');
 });
+it('forbids a regular shop user from the catalog management page', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('catalog.vehicles'))
+        ->assertForbidden();
+});
+
+it('lets a platform admin open the catalog management page', function () {
+    config(['app.platform_admins' => ['admin@example.com']]);
+
+    $this->actingAs(User::factory()->create(['email' => 'admin@example.com']))
+        ->get(route('catalog.vehicles'))
+        ->assertOk();
+});

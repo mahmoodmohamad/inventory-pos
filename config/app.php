@@ -122,5 +122,9 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+    'platform_admins' => array_filter(array_map(
+        'strtolower',
+        array_map('trim', explode(',', (string) env('PLATFORM_ADMINS', '')))
+    )),
 
 ];
