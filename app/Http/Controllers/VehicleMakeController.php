@@ -1,18 +1,18 @@
+
 <?php
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\VehicleMakeResource;
 use App\Models\VehicleMake;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\View\View;
 
 class VehicleMakeController extends Controller
 {
     /**
-     * الكتالوج المشترك: الشركات النشطة وموديلاتها النشطة، مرتبة بالاسم.
+     * Display active vehicle makes and their active models.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(): View
     {
         $makes = VehicleMake::query()
             ->where('is_active', true)
@@ -20,8 +20,8 @@ class VehicleMakeController extends Controller
                 ->where('is_active', true)
                 ->orderBy('name')])
             ->orderBy('name')
-            ->get();
+            ->paginate(15);
 
-        return VehicleMakeResource::collection($makes);
+        return view('vehicle-makes.index', compact('makes'));
     }
 }

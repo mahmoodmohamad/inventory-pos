@@ -51,6 +51,11 @@ new #[Title('Vehicle variants')] class extends Component
     /**
      * @return array<string, array<int, mixed>>
      */
+	 
+	 public function mount(): void
+{
+    abort_unless(Gate::allows('manage-catalog'), 403);
+}
     protected function rules(): array
     {
         return [

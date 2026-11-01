@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\VehicleMakeController;
-
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -30,8 +29,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('users.index');
 
     // Read-only catalog: any authenticated user can browse.
-    Route::get('vehicle-makes', [VehicleMakeController::class, 'index'])
-        ->name('vehicle-makes.index');
+  Route::livewire('/vehicle-makes', 'pages::vehicle-makes')
+    ->name('vehicle-makes.index');
 });
 
 /*
