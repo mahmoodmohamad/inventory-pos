@@ -15,6 +15,7 @@ arch('every tenant model uses BelongsToShop')
         User::class,
         VehicleMake::class,
         VehicleModel::class,
+        VehicleVariant::class,
         'App\Models\Concerns',
         'App\Models\Scopes',
     ]);

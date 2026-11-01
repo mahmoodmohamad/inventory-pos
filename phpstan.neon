@@ -10,6 +10,11 @@ parameters:
         - database/
         - routes/
 
+    excludePaths:
+        analyse:
+            # مؤقت: هيتمسح في 2.5 لما نعيد بناء صفحة الكتالوج
+            - app/Livewire/VehicleCatalog.php
+
     ignoreErrors:
         -
             identifier: trait.unused

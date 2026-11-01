@@ -30,5 +30,4 @@ class VehicleMake extends Model
     {
         return $this->hasMany(VehicleModel::class, 'vehicle_make_id');
     }
-
 }

@@ -19,7 +19,7 @@ class VehicleModelFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $name = fake()->unique()->bothify('Model ???-###');
 
         return [
             'vehicle_make_id' => VehicleMake::factory(),

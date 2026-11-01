@@ -6,15 +6,14 @@ namespace App\Models;
 
 use App\Enums\FuelType;
 use App\Enums\Transmission;
+use Database\Factories\VehicleVariantFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * Shared catalog model: no shop_id, not scoped by ShopScope.
- */
 class VehicleVariant extends Model
 {
+    /** @use HasFactory<VehicleVariantFactory> */
     use HasFactory;
 
     protected $fillable = [

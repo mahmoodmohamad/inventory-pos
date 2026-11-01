@@ -1,0 +1,19 @@
+Note: Using configuration file D:\laravel\inventory-pos\phpstan.neon.
+
+D:\laravel\inventory-pos\app\Http\Resources\VehicleMakeResource.php:16:Access to an undefined property App\Http\Resources\VehicleMakeResource::$id.
+D:\laravel\inventory-pos\app\Http\Resources\VehicleMakeResource.php:17:Access to an undefined property App\Http\Resources\VehicleMakeResource::$name.
+D:\laravel\inventory-pos\app\Http\Resources\VehicleMakeResource.php:18:Access to an undefined property App\Http\Resources\VehicleMakeResource::$slug.
+D:\laravel\inventory-pos\app\Http\Resources\VehicleModelResource.php:16:Access to an undefined property App\Http\Resources\VehicleModelResource::$id.
+D:\laravel\inventory-pos\app\Http\Resources\VehicleModelResource.php:17:Access to an undefined property App\Http\Resources\VehicleModelResource::$name.
+D:\laravel\inventory-pos\app\Http\Resources\VehicleModelResource.php:18:Access to an undefined property App\Http\Resources\VehicleModelResource::$name_ar.
+D:\laravel\inventory-pos\app\Http\Resources\VehicleModelResource.php:19:Access to an undefined property App\Http\Resources\VehicleModelResource::$slug.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:43:Property App\Livewire\VehicleCatalog::$expanded type has no value type specified in iterable type array.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:51:Method App\Livewire\VehicleCatalog::rules() return type has no value type specified in iterable type array.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:213:Property App\Models\VehicleModel::$vehicle_make_id (int<0, max>) does not accept int|null.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:331:Access to an undefined property App\Livewire\VehicleCatalog::$catalog.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:344:Method App\Livewire\VehicleCatalog::getCatalogProperty() has no return type specified.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:394:Method App\Livewire\VehicleCatalog::render() has no return type specified.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:401:Parameter #1 $view of function view expects view-string|null, string given.
+D:\laravel\inventory-pos\app\Livewire\VehicleCatalog.php:402:Access to an undefined property App\Livewire\VehicleCatalog::$catalog.
+D:\laravel\inventory-pos\app\Models\VehicleModel.php:37:Method App\Models\VehicleModel::variants() return type with generic class Illuminate\Database\Eloquent\Relations\HasMany does not specify its types: TRelatedModel, TDeclaringModel
+D:\laravel\inventory-pos\app\Models\VehicleVariant.php:18:Class App\Models\VehicleVariant uses generic trait Illuminate\Database\Eloquent\Factories\HasFactory but does not specify its types: TFactory

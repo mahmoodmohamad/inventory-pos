@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Livewire;
 
 use App\Models\VehicleMake;
@@ -14,7 +15,9 @@ use Livewire\Component;
 class VehicleCatalog extends Component
 {
     public string $search = '';
-public string $statusFilter = 'all';
+
+    public string $statusFilter = 'all';
+
     public string $filter = 'all';
 
     public bool $showMakeModal = false;
@@ -119,7 +122,7 @@ public string $statusFilter = 'all';
         DB::transaction(function () {
             $make = $this->editingMakeId
                 ? VehicleMake::findOrFail($this->editingMakeId)
-                : new VehicleMake();
+                : new VehicleMake;
 
             $make->name = trim($this->makeName);
             $make->is_active = $this->makeActive;
@@ -205,7 +208,7 @@ public string $statusFilter = 'all';
                 ? VehicleModel::query()
                     ->where('vehicle_make_id', $this->selectedMakeId)
                     ->findOrFail($this->editingModelId)
-                : new VehicleModel();
+                : new VehicleModel;
 
             $model->vehicle_make_id = $this->selectedMakeId;
             $model->name = trim($this->modelName);
@@ -389,15 +392,17 @@ public string $statusFilter = 'all';
     }
 
     public function render()
-    {$variantCounts = \App\Models\VehicleModel::withCount('variants')
-    ->get()
-    ->pluck('variants_count', 'id')
-    ->toArray();
+    {
+        $variantCounts = VehicleModel::withCount('variants')
+            ->get()
+            ->pluck('variants_count', 'id')
+            ->toArray();
+
         return view('components.catalog.⚡vehicle-catalog', [
             'catalog' => $this->catalog,
             'makesTotal' => VehicleMake::count(),
             'modelsTotal' => VehicleModel::count(),
-			'variantCounts' => $variantCounts,
+            'variantCounts' => $variantCounts,
             'variantsTotal' => VehicleVariant::count(),
             'activeMakes' => VehicleMake::where('is_active', true)->count(),
             'inactiveMakes' => VehicleMake::where('is_active', false)->count(),

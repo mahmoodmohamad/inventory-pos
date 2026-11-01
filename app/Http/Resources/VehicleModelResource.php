@@ -2,13 +2,22 @@
 
 namespace App\Http\Resources;
 
+use App\Models\VehicleModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin VehicleModel
+ */
 class VehicleModelResource extends JsonResource
 {
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     id: int,
+     *     name: string,
+     *     name_ar: string|null,
+     *     slug: string
+     * }
      */
     public function toArray(Request $request): array
     {

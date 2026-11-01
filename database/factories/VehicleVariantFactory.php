@@ -23,7 +23,7 @@ class VehicleVariantFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $name = fake()->unique()->bothify('Variant ???-###');
         $yearFrom = fake()->numberBetween(2005, 2020);
 
         return [
