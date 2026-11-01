@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\VehicleMakeController;
-use App\Livewire\VehicleCatalog;
+
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -43,11 +43,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 |
 */
 
-Route::middleware(['auth', 'verified', 'can:manage-catalog'])->group(function () {
+Route::middleware(['auth'])->group(function (): void {
     Route::livewire('catalog/vehicle-variants', 'catalog.vehicle-variants')
         ->name('catalog.vehicle-variants');
 
-    Route::get('catalog/vehicles', VehicleCatalog::class)
+    Route::livewire('catalog/vehicles', 'catalog.vehicle-catalog')
         ->name('catalog.vehicles');
 });
 
