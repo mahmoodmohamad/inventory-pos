@@ -24,7 +24,7 @@ class DemoShopSeeder extends Seeder
                 'address' => 'القاهرة، مصر',
                 'currency' => 'EGP',
                 'is_active' => true,
-                'settings' => ['allow_negative_stock' => true],
+                'settings' => ['allow_negative_stock' => true, 'storefront_enabled' => true],
             ],
         );
 

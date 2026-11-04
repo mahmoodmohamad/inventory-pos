@@ -106,10 +106,14 @@ new #[Title('الفئات')] class extends Component {
                 @endforeach
             </flux:select>
             <div class="flex gap-2">
-                            <div class="flex gap-2">
-                <flux:button type="submit" variant="primary">{{ $editingId ? __('تحديث') : __('حفظ') }}</flux:button>
-                <flux:button type="button" variant="ghost" wire:click="cancel">{{ __('إلغاء') }}</flux:button>
-            </div>
+    <flux:button type="submit" variant="primary">
+        {{ $editingId ? __('تحديث') : __('حفظ') }}
+    </flux:button>
+
+    <flux:button type="button" variant="ghost" wire:click="cancel">
+        {{ __('إلغاء') }}
+    </flux:button>
+</div>
         </form>
     @endif
 

@@ -11,6 +11,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Illuminate\Support\Facades\Gate;
 
 new #[Title('Vehicle variants')] class extends Component
 {
@@ -52,11 +53,17 @@ new #[Title('Vehicle variants')] class extends Component
      * @return array<string, array<int, mixed>>
      */
 	 
-	 public function mount(): void
-{
-    abort_unless(Gate::allows('manage-catalog'), 403);
-}
-    protected function rules(): array
+    public bool $is_active = true;
+
+    public function mount(): void
+    {
+        abort_unless(Gate::allows('manage-catalog'), 403);
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    protected function rules(): arraytected function rules(): array
     {
         return [
             'vehicle_model_id' => ['required', 'integer', Rule::exists('vehicle_models', 'id')],

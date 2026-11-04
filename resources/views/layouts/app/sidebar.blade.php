@@ -16,116 +16,151 @@
             </flux:sidebar.header>
 
             {{-- Main Navigation --}}
-            <flux:sidebar.nav>
+           
+{{-- Main Navigation --}}
+<flux:sidebar.nav>
 
-                {{-- Dashboard --}}
-                <flux:sidebar.group heading="Overview" class="grid">
-                    <flux:sidebar.item
-                        icon="home"
-                        :href="route('dashboard')"
-                        :current="request()->routeIs('dashboard')"
-                        wire:navigate
-                    >
-                        Dashboard
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
+    {{-- Overview --}}
+    <flux:sidebar.group heading="Overview" class="grid">
+        <flux:sidebar.item
+            icon="home"
+            :href="route('dashboard')"
+            :current="request()->routeIs('dashboard')"
+            wire:navigate
+        >
+            Dashboard
+        </flux:sidebar.item>
+    </flux:sidebar.group>
 
-                {{-- Vehicle Catalog --}}
-                <flux:sidebar.group heading="Vehicle Management" class="grid">
+    {{-- Vehicle Management --}}
+    <flux:sidebar.group heading="Vehicle Management" class="grid">
 
-                    <flux:sidebar.item
-                        :href="route('vehicle-makes.index')"
-                        :current="request()->routeIs('vehicle-makes.*')"
-                        wire:navigate
-                    >
-                        Vehicle Makes
-                    </flux:sidebar.item>
+        <flux:sidebar.item
+            :href="route('vehicle-makes.index')"
+            :current="request()->routeIs('vehicle-makes.*')"
+            wire:navigate
+        >
+            Vehicle Makes
+        </flux:sidebar.item>
 
-                    @can('manage-catalog')
-                        <flux:sidebar.item
-                            :href="route('catalog.vehicle-variants')"
-                            :current="request()->routeIs('catalog.vehicle-variants')"
-                            wire:navigate
-                        >
-                            Vehicle Variants
-                        </flux:sidebar.item>
+        @can('manage-catalog')
+            <flux:sidebar.item
+                :href="route('catalog.vehicle-variants')"
+                :current="request()->routeIs('catalog.vehicle-variants')"
+                wire:navigate
+            >
+                Vehicle Variants
+            </flux:sidebar.item>
 
-                        <flux:sidebar.item
-                            :href="route('catalog.vehicles')"
-                            :current="request()->routeIs('catalog.vehicles')"
-                            wire:navigate
-                        >
-                            Vehicle Catalog
-                        </flux:sidebar.item>
-                    @endcan
+            <flux:sidebar.item
+                :href="route('catalog.vehicles')"
+                :current="request()->routeIs('catalog.vehicles')"
+                wire:navigate
+            >
+                Vehicle Catalog
+            </flux:sidebar.item>
+        @endcan
 
-                </flux:sidebar.group>
+    </flux:sidebar.group>
 
-                {{-- Inventory --}}
-                <flux:sidebar.group heading="Inventory" class="grid">
+    {{-- Inventory --}}
+    <flux:sidebar.group heading="Inventory" class="grid">
+        @can('viewAny', App\Models\Product::class)
+    <flux:sidebar.item
+        :href="route('products.index')"
+        :current="request()->routeIs('products.*')"
+        wire:navigate
+    >
+        Products
+    </flux:sidebar.item>
+@endcan
+        @can('viewAny', App\Models\Category::class)
+    <flux:sidebar.item :href="route('categories.index')" :current="request()->routeIs('categories.*')" wire:navigate>
+        Categories
+    </flux:sidebar.item>
+@endcan
 
-                    <flux:sidebar.item>
-                        Products
-                    </flux:sidebar.item>
+@can('viewAny', App\Models\Brand::class)
+    <flux:sidebar.item :href="route('brands.index')" :current="request()->routeIs('brands.*')" wire:navigate>
+        Brands
+    </flux:sidebar.item>
+@endcan
 
-                    <flux:sidebar.item>
-                        Stock Management
-                    </flux:sidebar.item>
+@can('viewAny', App\Models\StockMovement::class)
+    <flux:sidebar.item :href="route('stock-movements.index')" :current="request()->routeIs('stock-movements.*')" wire:navigate>
+        Stock Movements
+    </flux:sidebar.item>
+@endcan
 
-                    <flux:sidebar.item>
-                        Stock Transfers
-                    </flux:sidebar.item>
+        <flux:sidebar.item>
+            Stock Management
+        </flux:sidebar.item>
 
-                    <flux:sidebar.item>
-                        Suppliers
-                    </flux:sidebar.item>
+        <flux:sidebar.item>
+            Stock Transfers
+        </flux:sidebar.item>
 
-                </flux:sidebar.group>
+        <flux:sidebar.item>
+            Suppliers
+        </flux:sidebar.item>
+    </flux:sidebar.group>
 
-                {{-- Sales --}}
-                <flux:sidebar.group heading="Sales" class="grid">
+    {{-- Sales --}}
+    <flux:sidebar.group heading="Sales" class="grid">
+                @can('viewAny', App\Models\Sale::class)
+            <flux:sidebar.item :href="route('sales.index')" :current="request()->routeIs('sales.*')" wire:navigate>
+                Invoices
+            </flux:sidebar.item>
+        @endcan
+        <flux:sidebar.item>
+            Point of Sale
+        </flux:sidebar.item>
 
-                    <flux:sidebar.item>
-                        Point of Sale
-                    </flux:sidebar.item>
+        <flux:sidebar.item>
+            Orders
+        </flux:sidebar.item>
 
-                    <flux:sidebar.item>
-                        Orders
-                    </flux:sidebar.item>
+        <flux:sidebar.item>
+            Customers
+        </flux:sidebar.item>
+    </flux:sidebar.group>
 
-                    <flux:sidebar.item>
-                        Customers
-                    </flux:sidebar.item>
+    {{-- Administration --}}
+    <flux:sidebar.group heading="Administration" class="grid">
 
-                </flux:sidebar.group>
+        @can('viewAny', App\Models\User::class)
+            <flux:sidebar.item
+                :href="route('users.index')"
+                :current="request()->routeIs('users.*')"
+                wire:navigate
+            >
+                Users
+            </flux:sidebar.item>
+        @endcan
 
-                {{-- Administration --}}
-                <flux:sidebar.group heading="Administration" class="grid">
+        <flux:sidebar.item
+            :href="route('profile.edit')"
+            :current="request()->routeIs('profile.*')"
+            wire:navigate
+        >
+            Settings
+        </flux:sidebar.item>
 
-                    <flux:sidebar.item
-                        :href="route('users.index')"
-                        :current="request()->routeIs('users.*')"
-                        wire:navigate
-                    >
-                        Users
-                    </flux:sidebar.item>
+    </flux:sidebar.group>
 
-                </flux:sidebar.group>
+    {{-- Reports --}}
+    <flux:sidebar.group heading="Reports" class="grid">
+        <flux:sidebar.item>
+            Sales Reports
+        </flux:sidebar.item>
 
-                {{-- Reports --}}
-                <flux:sidebar.group heading="Reports" class="grid">
+        <flux:sidebar.item>
+            Inventory Reports
+        </flux:sidebar.item>
+    </flux:sidebar.group>
 
-                    <flux:sidebar.item>
-                        Sales Reports
-                    </flux:sidebar.item>
+</flux:sidebar.nav>
 
-                    <flux:sidebar.item>
-                        Inventory Reports
-                    </flux:sidebar.item>
-
-                </flux:sidebar.group>
-
-            </flux:sidebar.nav>
 
             <flux:spacer />
 

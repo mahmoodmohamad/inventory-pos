@@ -1,6 +1,13 @@
 <?php
 
-use App\Http\Controllers\VehicleMakeController;
+use App\Http\Controllers\StorefrontCartController;
+use App\Http\Controllers\StorefrontController;
+use App\Http\Middleware\ResolvePublicShop;
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\Sale;
+use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -9,7 +16,26 @@ use Illuminate\Support\Facades\Route;
 | Public Routes
 |--------------------------------------------------------------------------
 */
+/*
+|--------------------------------------------------------------------------
+| Public Storefront (guests, one shop per slug)
+|--------------------------------------------------------------------------
+*/
 
+// routes/web.php  (جوه نفس group الـ storefront)
+Route::prefix('s/{shopSlug}')
+    ->middleware([ResolvePublicShop::class, 'throttle:120,1'])
+    ->name('storefront.')
+    ->group(function (): void {
+        Route::get('/', [StorefrontController::class, 'index'])->name('index');
+
+        Route::get('cart', [StorefrontCartController::class, 'show'])->name('cart.show');
+        Route::post('cart', [StorefrontCartController::class, 'store'])->name('cart.store');
+        Route::patch('cart/{productId}', [StorefrontCartController::class, 'update'])
+            ->whereNumber('productId')->name('cart.update');
+        Route::delete('cart/{productId}', [StorefrontCartController::class, 'destroy'])
+            ->whereNumber('productId')->name('cart.destroy');
+    });
 Route::view('/', 'welcome')->name('home');
 
 /*
@@ -22,15 +48,35 @@ Route::view('/', 'welcome')->name('home');
 */
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('/dashboard', 'dashboard')->name('dashboard');
+    Route::livewire('/dashboard', 'pages::dashboard.index')->name('dashboard');
 
     Route::livewire('/users', 'pages::users.index')
         ->can('viewAny', User::class)
         ->name('users.index');
-
+    Route::livewire('/categories', 'pages::categories.index')
+        ->can('viewAny', Category::class)
+        ->name('categories.index');
     // Read-only catalog: any authenticated user can browse.
-  Route::livewire('/vehicle-makes', 'pages::vehicle-makes')
-    ->name('vehicle-makes.index');
+    Route::livewire('/vehicle-makes', 'pages::vehicle-makes')
+        ->name('vehicle-makes.index');
+    Route::livewire('/products', 'pages::products.index')
+        ->can('viewAny', Product::class)
+        ->name('products.index');
+
+    Route::livewire('/brands', 'pages::brands.index')
+        ->can('viewAny', Brand::class)
+        ->name('brands.index');
+
+    Route::livewire('/stock-movements', 'pages::stock-movements.index')
+        ->can('viewAny', StockMovement::class)
+        ->name('stock-movements.index');
+    Route::livewire('/sales', 'pages::sales.index')
+        ->can('viewAny', Sale::class)
+        ->name('sales.index');
+
+    Route::livewire('/sales/{id}', 'pages::sales.show')
+        ->whereNumber('id')
+        ->name('sales.show');
 });
 
 /*

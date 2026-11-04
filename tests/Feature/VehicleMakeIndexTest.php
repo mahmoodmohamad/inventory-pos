@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
+use Livewire\Livewire;
 
 it('rejects guests', function () {
     $this->getJson(route('vehicle-makes.index'))->assertUnauthorized();
@@ -19,17 +20,22 @@ it('lists active makes with their active models ordered by name', function () {
     VehicleModel::factory()->for($audi, 'make')->create(['name' => 'A4', 'slug' => 'a4']);
 
     $this->actingAs(User::factory()->create())
-        ->getJson(route('vehicle-makes.index'))
+        ->get(route('vehicle-makes.index'))
         ->assertOk()
-        ->assertJsonCount(2, 'data')
-        ->assertJsonPath('data.0.name', 'Audi')
-        ->assertJsonPath('data.1.name', 'Toyota')
-        ->assertJsonCount(2, 'data.1.models')
-        ->assertJsonPath('data.1.models.0.name', 'Corolla')
-        ->assertJsonPath('data.1.models.1.name', 'Yaris')
-        ->assertJsonMissing(['name' => 'Hidden Make'])
-        ->assertJsonMissing(['name' => 'Old Model'])
-        ->assertJsonMissingPath('data.0.created_at');
+        ->assertSeeInOrder(['Audi', 'A4', 'Toyota', 'Corolla', 'Yaris'])
+        ->assertDontSee('Hidden Make')
+        ->assertDontSee('Old Model');
+});
+
+it('filters makes by the search term', function () {
+    VehicleMake::factory()->create(['name' => 'Toyota', 'slug' => 'toyota']);
+    VehicleMake::factory()->create(['name' => 'Audi', 'slug' => 'audi']);
+
+    Livewire::actingAs(User::factory()->create())
+        ->test('pages::vehicle-makes')
+        ->set('search', 'toy')
+        ->assertSee('Toyota')
+        ->assertDontSee('Audi');
 });
 it('forbids a regular shop user from the catalog management page', function () {
     $this->actingAs(User::factory()->create())

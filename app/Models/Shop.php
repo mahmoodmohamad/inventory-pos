@@ -32,4 +32,17 @@ class Shop extends Model
     {
         return data_get($this->settings, $key, $default);
     }
+
+    public function whatsappNumber(): ?string
+    {
+        $digits = (string) preg_replace('/\D+/', '', (string) $this->phone);
+
+        if (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        } elseif (str_starts_with($digits, '0')) {
+            $digits = '20'.substr($digits, 1);
+        }
+
+        return strlen($digits) >= 10 ? $digits : null;
+    }
 }

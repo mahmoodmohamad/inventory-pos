@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -38,9 +39,30 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('manage-catalog', fn (User $user): bool => in_array(
             strtolower($user->email),
-            config('app.platform_admins'),
+            array_map('strtolower', config('app.platform_admins', [])),
             true,
-        ));
+        )
+        );
+
+        Gate::define('view-financials', fn (User $user): bool => $user->is_active
+            && in_array(
+                $user->role,
+                [UserRole::Owner, UserRole::Manager],
+                true,
+            )
+        );
+
+        Gate::define('manage-shop', fn (User $user): bool => $user->is_active
+            && $user->role === UserRole::Owner
+        );
+
+        Gate::define('set-stock', fn (User $user): bool => $user->is_active
+            && $user->role === UserRole::Owner
+        );
+        // صلاحية منفصلة: تغيير سعر البيع يدويًا
+        Gate::define('override-price', fn (User $user): bool => $user->is_active
+            && in_array($user->role, [UserRole::Owner, UserRole::Manager], true)
+        );
     }
 
     protected function registerBlueprintMacros(): void
