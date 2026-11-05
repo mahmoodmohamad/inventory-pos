@@ -5,6 +5,7 @@ use App\Http\Controllers\StorefrontController;
 use App\Http\Middleware\ResolvePublicShop;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
@@ -21,7 +22,13 @@ use Illuminate\Support\Facades\Route;
 | Public Storefront (guests, one shop per slug)
 |--------------------------------------------------------------------------
 */
+Route::get('/language/{locale}', function ($locale) {
+    abort_unless(in_array($locale, ['ar', 'en']), 404);
 
+    session(['locale' => $locale]);
+
+    return redirect()->back();
+})->name('language.switch');
 // routes/web.php  (جوه نفس group الـ storefront)
 Route::prefix('s/{shopSlug}')
     ->middleware([ResolvePublicShop::class, 'throttle:120,1'])
@@ -37,7 +44,10 @@ Route::prefix('s/{shopSlug}')
             ->whereNumber('productId')->name('cart.destroy');
     });
 Route::view('/', 'welcome')->name('home');
-
+Route::get('/{shopSlug}/products/{productId}', [
+    StorefrontController::class,
+    'show',
+])->name('storefront.products.show');
 /*
 |--------------------------------------------------------------------------
 | Authenticated & Verified Routes
@@ -77,6 +87,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/sales/{id}', 'pages::sales.show')
         ->whereNumber('id')
         ->name('sales.show');
+
+    Route::livewire('/customers', 'pages::customers.index')
+        ->can('viewAny', Customer::class)
+        ->name('customers.index');
+    Route::livewire('suppliers', 'pages::suppliers.index')->name('suppliers.index');
+    Route::livewire('purchases', 'pages::purchases.index')->name('purchases.index');
+    Route::livewire('purchases/create', 'pages::purchases.create')->name('purchases.create');
+    Route::livewire('purchases/{id}', 'pages::purchases.show')->whereNumber('id')->name('purchases.show');
 });
 
 /*

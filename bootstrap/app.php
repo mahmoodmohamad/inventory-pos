@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\SetCurrentShop;
+use App\Http\Middleware\SetStorefrontLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,7 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [SetCurrentShop::class, EnsureUserIsActive::class]);
+        $middleware->web(append: [
+            SetCurrentShop::class,
+            EnsureUserIsActive::class,
+            SetStorefrontLocale::class,
+        ]);
 
         // لازم يشتغل قبل route model binding، وإلا الـ binding هيرمي MissingTenantException
         $middleware->prependToPriorityList(

@@ -43,6 +43,11 @@ class SalePolicy extends ShopPolicy
             : Response::deny();
     }
 
+    public function complete(User $user, Sale $sale): Response
+    {
+        return $this->update($user, $sale);
+    }
+
     public function delete(User $user, Sale $sale): Response
     {
         return $this->update($user, $sale);

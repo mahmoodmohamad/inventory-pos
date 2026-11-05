@@ -8,6 +8,7 @@ use App\Livewire\Forms\ProductForm;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -41,8 +42,9 @@ final class ProductSaveService
                 );
             }
 
-            if ((float) $form->opening_qty > 0) {
-                $this->stock->openingBalance($created, (float) $form->opening_qty, (float) $form->opening_cost, 'رصيد افتتاحي');
+            // الكمية والتكلفة بتتبعت كنص عشري لـ StockService (من غير floats)
+            if (Money::cmp($form->opening_qty, '0', 3) > 0) {
+                $this->stock->openingBalance($created, trim($form->opening_qty), trim($form->opening_cost), 'رصيد افتتاحي');
             }
 
             return $created;
@@ -51,14 +53,14 @@ final class ProductSaveService
 
     private function applyStockCorrection(User $actor, ProductForm $form, Product $product): void
     {
-        if ($form->new_stock_qty === '' || ! Gate::forUser($actor)->allows('set-stock')) {
+        if (trim($form->new_stock_qty) === '' || ! Gate::forUser($actor)->allows('set-stock')) {
             return;
         }
 
-        $current = (float) Product::query()->lockForUpdate()->findOrFail($product->id)->stock_qty;
-        $delta = round((float) $form->new_stock_qty - $current, 3);
+        $current = Money::norm(Product::query()->lockForUpdate()->findOrFail($product->id)->stock_qty);
+        $delta = Money::sub(trim($form->new_stock_qty), $current, 3);
 
-        if ($delta == 0.0) {
+        if (Money::cmp($delta, '0', 3) === 0) {
             return;
         }
 

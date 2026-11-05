@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Services\Sales\SaleService;
 use Flux\Flux;
+use App\Enums\PaymentMethod;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
@@ -46,7 +47,7 @@ new #[Title('الفاتورة')] class extends Component
     #[Computed]
     public function sale(): Sale
     {
-        return Sale::query()->with(['customer', 'items.product'])->findOrFail($this->saleId);
+        return Sale::query()->with(['customer', 'items.product', 'payments'])->findOrFail($this->saleId);
     }
 
     /** @return Collection<int, Product> */
@@ -128,6 +129,36 @@ new #[Title('الفاتورة')] class extends Component
         ];
     }
 
+    /*
+     * الإكمال والإلغاء وتغيير العميل/الشريحة لسه ما اتنفذوش في SaleService (الخطوة 5.3).
+     * الـ UI بتتفعّل لوحدها لما الـ methods والـ policies تتضاف، ومحاولة استدعاء مباشرة بترجع 404.
+     */
+    #[Computed]
+    public function checkoutAvailable(): bool
+    {
+        return method_exists(SaleService::class, 'complete')
+            && method_exists(\App\Policies\SalePolicy::class, 'complete');
+    }
+
+    #[Computed]
+    public function voidAvailable(): bool
+    {
+        return method_exists(SaleService::class, 'void')
+            && method_exists(\App\Policies\SalePolicy::class, 'void');
+    }
+
+    #[Computed]
+    public function customerEditAvailable(): bool
+    {
+        return method_exists(SaleService::class, 'setCustomer')
+            && method_exists(SaleService::class, 'setPriceType');
+    }
+
+    private function ensureSupported(string $serviceMethod): void
+    {
+        abort_unless(method_exists(SaleService::class, $serviceMethod), 404);
+    }
+
     /* ---------------------------------------------------------------- البنود */
 
     public function addProduct(int $productId): void
@@ -188,6 +219,8 @@ new #[Title('الفاتورة')] class extends Component
 
     public function selectCustomer(int $customerId): void
     {
+        $this->ensureSupported('setCustomer');
+
         $this->run(function () use ($customerId): void {
             app(SaleService::class)->setCustomer(Auth::user(), $this->sale, $customerId);
             $this->customerSearch = '';
@@ -196,12 +229,16 @@ new #[Title('الفاتورة')] class extends Component
 
     public function clearCustomer(): void
     {
+        $this->ensureSupported('setCustomer');
+
         $this->run(fn () => app(SaleService::class)->setCustomer(Auth::user(), $this->sale, null));
     }
 
     /** تغيير الشريحة (قطاعي/جملة) بيعيد تسعير البنود اللي سعرها ماتعدلش يدوي. */
     public function setPriceType(string $value): void
     {
+        $this->ensureSupported('setPriceType');
+
         $type = PriceType::tryFrom($value);
 
         if ($type === null) {
@@ -239,6 +276,8 @@ new #[Title('الفاتورة')] class extends Component
 
     private function finalize(): bool
     {
+        $this->ensureSupported('complete');
+
         $sale = $this->sale;
         $this->authorize('complete', $sale);
 
@@ -276,12 +315,12 @@ new #[Title('الفاتورة')] class extends Component
 
         try {
             app(SaleService::class)->complete(
-                Auth::user(),
-                $sale,
-                $this->paymentMethod,
-                $payment['paid'],
-                trim($this->notes) !== '' ? trim($this->notes) : null,
-            );
+    Auth::user(),
+    $sale,
+    $this->resolveMethod(),
+    $payment['paid'],
+    trim($this->notes) !== '' ? trim($this->notes) : null,
+);
         } catch (\InvalidArgumentException|\DomainException $e) {
             Flux::toast(variant: 'danger', text: $e->getMessage());
             unset($this->sale);
@@ -295,9 +334,19 @@ new #[Title('الفاتورة')] class extends Component
 
         return true;
     }
-
+private function resolveMethod(): ?PaymentMethod
+{
+    return match ($this->paymentMethod) {
+        'cash' => PaymentMethod::Cash,
+        'card' => PaymentMethod::Card,
+        'transfer' => PaymentMethod::BankTransfer,
+        default => null, // credit
+    };
+}
     public function voidSale(): void
     {
+        $this->ensureSupported('void');
+
         $this->authorize('void', $this->sale);
 
         if (trim($this->voidReason) === '') {
@@ -385,10 +434,11 @@ new #[Title('الفاتورة')] class extends Component
     </div>
 
     @if ($isVoided)
-        <flux:callout variant="danger" icon="x-circle" :heading="__('الفاتورة دي ملغاة')" :text="$sale->void_reason" />
+        <flux:callout variant="danger" icon="x-circle" :heading="__('الفاتورة دي ملغاة')" :text="$sale->cancellation_reason" />
     @endif
 
     @if ($isDraft)
+        @if ($this->customerEditAvailable)
         {{-- العميل + الشريحة --}}
         <div class="grid gap-4 md:grid-cols-2 print:hidden">
             <div class="space-y-2 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
@@ -431,6 +481,8 @@ new #[Title('الفاتورة')] class extends Component
                 <flux:text class="text-xs text-zinc-500">{{ __('تغيير الشريحة بيعيد تسعير البنود اللي سعرها ماتعدلش يدويًا.') }}</flux:text>
             </div>
         </div>
+
+        @endif
 
         {{-- البحث / الباركود --}}
         <div class="space-y-2 print:hidden">
@@ -585,15 +637,20 @@ new #[Title('الفاتورة')] class extends Component
                 </div>
             @elseif ($isCompleted || $isVoided)
                 <div class="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-700">
-                    <div class="flex justify-between">
-                        <span class="text-zinc-500">{{ __('طريقة الدفع') }}</span>
-                        <span>{{ $methods[$sale->payment_method] ?? $sale->payment_method }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-zinc-500">{{ __('المدفوع') }}</span>
-                        <span class="font-mono" dir="ltr">{{ $money($sale->paid_amount) }} {{ $currency }}</span>
-                    </div>
-                    @php $remaining = bcsub((string) $sale->total_amount, (string) $sale->paid_amount, 2); @endphp
+                    @php
+    $paidTotal = $sale->payments->reduce(fn ($c, $p) => bcadd($c, (string) $p->amount, 2), '0.00');
+    $methodLabels = $sale->payments->map(fn ($p) => $p->method->label())->unique()->implode('، ') ?: __('آجل');
+    $remaining = bcsub((string) $sale->total_amount, $paidTotal, 2);
+@endphp
+<div class="flex justify-between">
+    <span class="text-zinc-500">{{ __('طريقة الدفع') }}</span>
+    <span>{{ $methodLabels }}</span>
+</div>
+<div class="flex justify-between">
+    <span class="text-zinc-500">{{ __('المدفوع') }}</span>
+    <span class="font-mono" dir="ltr">{{ $money($paidTotal) }} {{ $currency }}</span>
+</div>
+                    @php $remaining = bcsub((string) $sale->total_amount, (string) ($sale->paid_amount ?? '0'), 2); @endphp
                     @if (bccomp($remaining, '0', 2) > 0)
                         <div class="flex justify-between text-amber-600">
                             <span>{{ __('متبقي على العميل') }}</span>
@@ -683,6 +740,7 @@ new #[Title('الفاتورة')] class extends Component
                 {{ __('حذف المسودة') }}
             </flux:button>
 
+            @if ($this->checkoutAvailable)
             <div class="flex flex-wrap items-center gap-2">
                 <flux:button variant="filled" icon="printer" wire:click="completeAndPrint"
                     wire:loading.attr="disabled" wire:target="complete,completeAndPrint"
@@ -697,8 +755,9 @@ new #[Title('الفاتورة')] class extends Component
                     {{ __('إكمال الفاتورة') }} <span class="text-xs opacity-70">(F9)</span>
                 </flux:button>
             </div>
+            @endif
         </div>
-    @elseif ($isCompleted && Gate::allows('void', $sale))
+    @elseif ($isCompleted && $this->voidAvailable && Gate::allows('void', $sale))
         <div class="flex justify-end print:hidden">
             <flux:modal.trigger name="void-sale">
                 <flux:button variant="danger" icon="arrow-uturn-left">{{ __('إلغاء الفاتورة') }}</flux:button>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ProductCondition;
 use App\Http\Requests\StorefrontSearchRequest;
+use App\Models\Product;
 use App\Models\Shop;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
@@ -75,4 +76,31 @@ class StorefrontController extends Controller
 
         return strlen($digits) >= 10 ? $digits : null;
     }
+    public function show(string $shopSlug, int $productId)
+{
+    $shop = Shop::where('slug', $shopSlug)->firstOrFail();
+
+    $product = Product::query()
+        ->where('shop_id', $shop->id)
+        ->where('is_active', true)
+        ->with([
+            'brand',
+            'category',
+            'fitments.variant.vehicleModel.make',
+        ])
+        ->findOrFail($productId);
+
+    $fitments = $product->fitments;
+
+    // عدّل هذا الجزء حسب نظام المخزون الموجود في مشروعك.
+    $inStock = false;
+
+    return view('storefront.show', [
+        'shop' => $shop,
+        'product' => $product,
+        'fitments' => $fitments,
+        'inStock' => $inStock,
+        'whatsapp' => $shop->whatsapp ?? null,
+    ]);
+}
 }

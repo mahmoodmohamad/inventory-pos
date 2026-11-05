@@ -88,7 +88,12 @@
                     </span>
                 </div>
 
-                <h2 class="sf-name">{{ $product['name'] }}</h2>
+                <h2 class="sf-name"><a href="{{ route('storefront.products.show', [
+    'shopSlug' => $shop->slug,
+    'productId' => $product['id'],
+]) }}">
+    {{ $product['name'] }}
+</a></h2>
 
                 @if ($product['part_number'] || $product['oem_number'])
                     <div class="sf-codes">

@@ -65,6 +65,7 @@ final class StorefrontCart
         $products = $items === [] ? collect() : Product::query()
             ->with('brand')
             ->where('is_active', true)
+            ->where('stock_qty', '>', 0)
             ->whereIn('id', array_keys($items))
             ->get()
             ->keyBy('id');
@@ -78,7 +79,7 @@ final class StorefrontCart
             $p = $products->get($id);
 
             if ($p === null) {
-                continue; // اتحذف أو اتوقف بعد ما اتضاف
+                continue; // اتحذف أو اتوقف أو خلص من المخزون بعد ما اتضاف (من غير ما نكشف الكمية)
             }
 
             $price = (float) $p->retail_price;

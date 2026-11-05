@@ -7,6 +7,7 @@ namespace App\Livewire\Forms;
 use App\Enums\ProductCondition;
 use App\Enums\ProductUnit;
 use App\Models\Product;
+use App\Support\Money;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Validation\Rule;
 use Livewire\Form;
@@ -75,31 +76,39 @@ class ProductForm extends Form
                 Rule::unique('products', 'barcode')->where('shop_id', $shopId)->ignore($this->editingId),
             ],
             'condition' => ['required', Rule::enum(ProductCondition::class)],
-            'new_stock_qty' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'new_stock_qty' => [
+                'nullable', 'numeric', 'regex:/\A\d{1,9}(?:\.\d{1,3})?\z/', 'min:0', 'max:999999999.999',
+            ],
             'stock_note' => ['nullable', 'string', 'max:255'],
             'unit' => ['required', Rule::enum(ProductUnit::class)],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')->where('shop_id', $shopId)],
             'brand_id' => ['nullable', 'integer', Rule::exists('brands', 'id')->where('shop_id', $shopId)],
             'newBrand' => ['nullable', 'string', 'max:255'],
-            'retail_price' => ['required', 'numeric', 'min:0', 'max:9999999999'],
+            'retail_price' => [
+                'required', 'numeric', 'regex:/\A\d{1,10}(?:\.\d{1,2})?\z/', 'min:0', 'max:9999999999.99',
+            ],
             'wholesale_price' => [
-                'required', 'numeric', 'min:0', 'max:9999999999',
+                'required', 'numeric', 'regex:/\A\d{1,10}(?:\.\d{1,2})?\z/', 'min:0', 'max:9999999999.99',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (is_numeric($value)
-                        && is_numeric($this->retail_price)
-                        && bccomp((string) $value, (string) $this->retail_price, 2) === 1
+                    if (preg_match('/\A\d+(?:\.\d+)?\z/', (string) $value) === 1
+                        && preg_match('/\A\d+(?:\.\d+)?\z/', $this->retail_price) === 1
+                        && bccomp(Money::norm((string) $value), Money::norm($this->retail_price), 2) === 1
                     ) {
                         $fail(__('سعر الجملة لا يمكن أن يزيد عن سعر القطاعي.'));
                     }
                 },
             ],
-            'min_stock_alert' => ['required', 'numeric', 'min:0', 'max:999999999'],
+            'min_stock_alert' => [
+                'required', 'numeric', 'regex:/\A\d{1,9}(?:\.\d{1,3})?\z/', 'min:0', 'max:999999999.999',
+            ],
             'location' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['boolean'],
-            'opening_qty' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'opening_qty' => [
+                'nullable', 'numeric', 'regex:/\A\d{1,9}(?:\.\d{1,3})?\z/', 'min:0', 'max:999999999.999',
+            ],
             'opening_cost' => [
-                'nullable', 'numeric', 'min:0',
+                'nullable', 'numeric', 'regex:/\A\d{1,8}(?:\.\d{1,4})?\z/', 'min:0', 'max:99999999.9999',
                 Rule::requiredIf(fn () => $this->editingId === null && (float) $this->opening_qty > 0),
             ],
         ];
