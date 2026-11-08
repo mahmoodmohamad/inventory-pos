@@ -14,6 +14,7 @@ return [
     'available' => 'Available',
     'out_of_stock' => 'Out of stock',
     'language' => 'Language',
+<<<<<<< HEAD
     'nav' => ['features' => 'Features', 'how' => 'How it works', 'store' => 'Storefront', 'faq' => 'FAQ'],
             'login' => 'Log in', 'register' => 'Start free', 'dash' => 'Dashboard',
             'h1' => 'Every part, matched to the car it fits.',
@@ -49,4 +50,6 @@ return [
             ],
             'final' => 'Ready to organise your shop?', 'final_sub' => 'Register today and add your first product.',
             'switch' => 'العربية',
+=======
+>>>>>>> 9dc89c6f7cc72fd12b6dc3d659c6145f1d61a51b
 ];

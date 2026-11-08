@@ -106,9 +106,18 @@
                     </span>
                 </div>
 
+<<<<<<< HEAD
                 <h2 class="sf-name">
                     <a href="{{ route('storefront.products.show', ['shopSlug' => $shop->slug, 'productId' => $product['id']]) }}">{{ $product['name'] }}</a>
                 </h2>
+=======
+                <h2 class="sf-name"><a href="{{ route('storefront.products.show', [
+    'shopSlug' => $shop->slug,
+    'productId' => $product['id'],
+]) }}">
+    {{ $product['name'] }}
+</a></h2>
+>>>>>>> 9dc89c6f7cc72fd12b6dc3d659c6145f1d61a51b
 
                 @if ($product['part_number'] || $product['oem_number'])
                     <div class="sf-codes">

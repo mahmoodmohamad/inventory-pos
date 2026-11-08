@@ -6,8 +6,11 @@ use App\Http\Middleware\ResolvePublicShop;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
+<<<<<<< HEAD
 use App\Models\Shop;
 use Illuminate\Http\Request;
+=======
+>>>>>>> 9dc89c6f7cc72fd12b6dc3d659c6145f1d61a51b
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
@@ -45,6 +48,7 @@ Route::prefix('s/{shopSlug}')
         Route::delete('cart/{productId}', [StorefrontCartController::class, 'destroy'])
             ->whereNumber('productId')->name('cart.destroy');
     });
+<<<<<<< HEAD
 
 
 Route::get('/', function (Request $request) {
@@ -60,6 +64,9 @@ Route::get('/', function (Request $request) {
 
     return view('welcome', ['shop' => $shop]);
 })->name('home');
+=======
+Route::view('/', 'welcome')->name('home');
+>>>>>>> 9dc89c6f7cc72fd12b6dc3d659c6145f1d61a51b
 Route::get('/{shopSlug}/products/{productId}', [
     StorefrontController::class,
     'show',
