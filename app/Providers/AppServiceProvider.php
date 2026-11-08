@@ -37,11 +37,12 @@ class AppServiceProvider extends ServiceProvider
 
     protected function registerGates(): void
     {
-        Gate::define('manage-catalog', fn (User $user): bool => in_array(
-            strtolower($user->email),
-            array_map('strtolower', config('app.platform_admins', [])),
-            true,
-        )
+        Gate::define('manage-catalog', fn (User $user): bool => $user->hasVerifiedEmail()
+            && in_array(
+                strtolower($user->email),
+                array_map('strtolower', config('app.platform_admins', [])),
+                true,
+            )
         );
 
         Gate::define('view-financials', fn (User $user): bool => $user->is_active
@@ -59,9 +60,14 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('set-stock', fn (User $user): bool => $user->is_active
             && $user->role === UserRole::Owner
         );
+
         // صلاحية منفصلة: تغيير سعر البيع يدويًا
         Gate::define('override-price', fn (User $user): bool => $user->is_active
-            && in_array($user->role, [UserRole::Owner, UserRole::Manager], true)
+            && in_array(
+                $user->role,
+                [UserRole::Owner, UserRole::Manager],
+                true,
+            )
         );
     }
 

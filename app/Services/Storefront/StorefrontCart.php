@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Storefront;
 
 use App\Models\Product;
+use App\Models\Product;
 use App\Models\Shop;
+use App\Models\Shop;
+use App\Support\Money;
 
 /** يشتغل جوه سياق محل (ResolvePublicShop). الـ session بتخزّن id => qty بس. */
 final class StorefrontCart
@@ -55,8 +58,25 @@ final class StorefrontCart
         return (int) array_sum($this->items($shop));
     }
 
+    /** @return array<int, int> */
+    private function items(Shop $shop): array
+    {
+        return array_map('intval', (array) session()->get($this->key($shop), []));
+    }
+
+    /** @param array<int, int> $items */
+    private function put(Shop $shop, array $items): void
+    {
+        session()->put($this->key($shop), $items);
+    }
+
+    private function key(Shop $shop): string
+    {
+        return 'storefront_cart.'.$shop->id;
+    }
+
     /**
-     * @return array{lines: list<array<string, mixed>>, total: float, count: int, has_unpriced: bool}
+     * @return array{lines: list<array<string, mixed>>, total: numeric-string, count: int, has_unpriced: bool}
      */
     public function summary(Shop $shop): array
     {
@@ -72,7 +92,7 @@ final class StorefrontCart
 
         $lines = [];
         $clean = [];
-        $total = 0.0;
+        $total = '0.00';
         $unpriced = false;
 
         foreach ($items as $id => $qty) {
@@ -82,10 +102,10 @@ final class StorefrontCart
                 continue; // اتحذف أو اتوقف أو خلص من المخزون بعد ما اتضاف (من غير ما نكشف الكمية)
             }
 
-            $price = (float) $p->retail_price;
-            $subtotal = $price * $qty;
-            $total += $subtotal;
-            $unpriced = $unpriced || $price <= 0;
+            $price = Money::norm($p->retail_price);
+            $subtotal = Money::mul($price, (string) $qty, 2);
+            $total = Money::add($total, $subtotal, 2);
+            $unpriced = $unpriced || Money::cmp($price, '0', 2) <= 0;
             $clean[$id] = $qty;
 
             $lines[] = [
@@ -110,22 +130,5 @@ final class StorefrontCart
             'count' => (int) array_sum($clean),
             'has_unpriced' => $unpriced,
         ];
-    }
-
-    /** @return array<int, int> */
-    private function items(Shop $shop): array
-    {
-        return array_map('intval', (array) session()->get($this->key($shop), []));
-    }
-
-    /** @param array<int, int> $items */
-    private function put(Shop $shop, array $items): void
-    {
-        session()->put($this->key($shop), $items);
-    }
-
-    private function key(Shop $shop): string
-    {
-        return 'storefront_cart.'.$shop->id;
     }
 }

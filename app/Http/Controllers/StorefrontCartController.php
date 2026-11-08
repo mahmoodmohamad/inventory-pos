@@ -57,7 +57,7 @@ class StorefrontCartController extends Controller
         return $request->attributes->get('storefront_shop');
     }
 
-    /** @param array{lines: list<array<string, mixed>>, total: float, has_unpriced: bool} $cart */
+    /** @param array{lines: list<array<string, mixed>>, total: numeric-string, has_unpriced: bool} $cart */
     private function checkoutUrl(Shop $shop, array $cart): ?string
     {
         $number = $shop->whatsappNumber();
@@ -76,9 +76,9 @@ class StorefrontCartController extends Controller
                 .' × '.$l['qty'];
         }
 
-        if ($cart['total'] > 0) {
+        if (Money::cmp($cart['total'], '0', 2) === 1) {
             $lines[] = '';
-            $lines[] = 'الإجمالي التقريبي: '.number_format($cart['total'], 2).' '.$currency
+            $lines[] = 'الإجمالي التقريبي: '.number_format((float) $cart['total'], 2).' '.$currency
                 .($cart['has_unpriced'] ? ' (+ قطع السعر عند السؤال)' : '');
         }
 

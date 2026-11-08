@@ -1,7 +1,12 @@
 @php
     $base = route('storefront.index', ['shopSlug' => $shop->slug]);
     $currency = $shop->currency === 'EGP' ? 'ج.م' : $shop->currency;
-    $money = fn (float $n): string => number_format($n, floor($n) == $n ? 0 : 2);
+    // تنسيق عرض فقط: من غير منازل عشرية لو الرقم صحيح
+    $money = fn (string $n): string => number_format(
+        (float) $n,
+        \App\Support\Money::cmp($n, bcadd($n, '0', 0), 2) === 0 ? 0 : 2
+    );
+    $positive = fn (string $n): bool => \App\Support\Money::cmp($n, '0', 2) === 1;
 @endphp
 
 <x-layouts::storefront :shop="$shop" :title="'السلة - '.$shop->name">
@@ -23,7 +28,7 @@
                             <span class="sf-muted">{{ $l['condition'] }}@if ($l['brand']) · {{ $l['brand'] }}@endif</span>
                         </div>
                         <div class="sf-muted">
-                            {{ $l['price'] > 0 ? $money($l['price']).' '.$currency : 'السعر عند السؤال' }}
+                           {{ $positive($l['price']) ? $money($l['price']).' '.$currency : 'السعر عند السؤال' }}
                         </div>
                     </div>
 
@@ -41,12 +46,12 @@
                 </div>
             @endforeach
 
-            @if ($cart['total'] > 0)
-                <div class="sf-total">
-                    <span>الإجمالي{{ $cart['has_unpriced'] ? ' (بدون قطع السعر عند السؤال)' : '' }}</span>
-                    <span>{{ $money($cart['total']) }} {{ $currency }}</span>
-                </div>
-            @endif
+            @if ($positive($cart['total']))
+    <div class="sf-total">
+        <span>الإجمالي{{ $cart['has_unpriced'] ? ' (بدون قطع السعر عند السؤال)' : '' }}</span>
+        <span>{{ $money($cart['total']) }} {{ $currency }}</span>
+    </div>
+@endif
         </div>
 
         <div class="sf-actions" style="margin-top:1rem">

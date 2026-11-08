@@ -650,7 +650,7 @@ private function resolveMethod(): ?PaymentMethod
     <span class="text-zinc-500">{{ __('المدفوع') }}</span>
     <span class="font-mono" dir="ltr">{{ $money($paidTotal) }} {{ $currency }}</span>
 </div>
-                    @php $remaining = bcsub((string) $sale->total_amount, (string) ($sale->paid_amount ?? '0'), 2); @endphp
+                   
                     @if (bccomp($remaining, '0', 2) > 0)
                         <div class="flex justify-between text-amber-600">
                             <span>{{ __('متبقي على العميل') }}</span>
@@ -757,28 +757,28 @@ private function resolveMethod(): ?PaymentMethod
             </div>
             @endif
         </div>
-    @elseif ($isCompleted && $this->voidAvailable && Gate::allows('void', $sale))
-        <div class="flex justify-end print:hidden">
-            <flux:modal.trigger name="void-sale">
-                <flux:button variant="danger" icon="arrow-uturn-left">{{ __('إلغاء الفاتورة') }}</flux:button>
-            </flux:modal.trigger>
+    @elseif ($isCompleted || $isVoided)
+    <div class="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-700">
+        @php
+            $paidTotal = $sale->payments->reduce(fn ($c, $p) => bcadd($c, (string) $p->amount, 2), '0.00');
+            $methodLabels = $sale->payments->map(fn ($p) => $p->method->label())->unique()->implode('، ') ?: __('آجل');
+            $remaining = bcsub((string) $sale->total_amount, $paidTotal, 2);
+        @endphp
+
+        <div class="flex justify-between">
+            <span class="text-zinc-500">{{ __('طريقة الدفع') }}</span>
+            <span>{{ $methodLabels }}</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-zinc-500">{{ __('المدفوع') }}</span>
+            <span class="font-mono" dir="ltr">{{ $money($paidTotal) }} {{ $currency }}</span>
         </div>
 
-        <flux:modal name="void-sale" class="md:w-96">
-            <div class="space-y-4">
-                <div>
-                    <flux:heading size="lg">{{ __('إلغاء الفاتورة') }}</flux:heading>
-                    <flux:text class="mt-2">{{ __('المخزون هيرجع وأي دين على العميل هيتعدل. العملية دي ماتتراجعش.') }}</flux:text>
-                </div>
-
-                <flux:textarea wire:model="voidReason" rows="3" :label="__('سبب الإلغاء')" />
-
-                <div class="flex gap-2">
-                    <flux:spacer />
-                    <flux:modal.close><flux:button variant="ghost">{{ __('رجوع') }}</flux:button></flux:modal.close>
-                    <flux:button variant="danger" wire:click="voidSale" wire:loading.attr="disabled" wire:target="voidSale">{{ __('تأكيد الإلغاء') }}</flux:button>
-                </div>
+        @if (bccomp($remaining, '0', 2) > 0)
+            <div class="flex justify-between text-amber-600">
+                <span>{{ __('متبقي على العميل') }}</span>
+                <span class="font-mono" dir="ltr">{{ $money($remaining) }} {{ $currency }}</span>
             </div>
-        </flux:modal>
-    @endif
+        @endif
+        
 </div>

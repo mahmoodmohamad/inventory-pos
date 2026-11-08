@@ -64,11 +64,8 @@ final class SaleService
         return DB::transaction(function () use ($actor, $sale, $productId, $qty, $requestedPrice): SaleItem {
             $locked = $this->lockDraft($actor, $sale);
 
-<<<<<<< HEAD
             $product = Product::query()->lockForUpdate()->findOrFail($productId);
-=======
-            $product = Product::query()->lockForUpdate()->findOrFail((int) $line['product_id']);
->>>>>>> 9dc89c6f7cc72fd12b6dc3d659c6145f1d61a51b
+           
 
             $original = $locked->price_type === PriceType::Wholesale
                 ? Money::norm($product->wholesale_price)

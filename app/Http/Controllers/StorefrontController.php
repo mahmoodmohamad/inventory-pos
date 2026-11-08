@@ -76,31 +76,23 @@ class StorefrontController extends Controller
 
         return strlen($digits) >= 10 ? $digits : null;
     }
-    public function show(string $shopSlug, int $productId)
-{
-    $shop = Shop::where('slug', $shopSlug)->firstOrFail();
 
-    $product = Product::query()
-        ->where('shop_id', $shop->id)
-        ->where('is_active', true)
-        ->with([
-            'brand',
-            'category',
-            'fitments.variant.vehicleModel.make',
-        ])
-        ->findOrFail($productId);
+    public function show(Request $request, int $productId): View
+    {
+        /** @var Shop $shop */
+        $shop = $request->attributes->get('storefront_shop');
 
-    $fitments = $product->fitments;
+        $product = Product::query()
+            ->where('is_active', true)
+            ->with(['brand', 'category', 'fitments.variant.vehicleModel.make'])
+            ->findOrFail($productId);
 
-    // عدّل هذا الجزء حسب نظام المخزون الموجود في مشروعك.
-    $inStock = false;
-
-    return view('storefront.show', [
-        'shop' => $shop,
-        'product' => $product,
-        'fitments' => $fitments,
-        'inStock' => $inStock,
-        'whatsapp' => $shop->whatsapp ?? null,
-    ]);
-}
+        return view('storefront.show', [
+            'shop' => $shop,
+            'product' => $product,
+            'fitments' => $product->fitments,
+            'inStock' => (float) $product->stock_qty > 0,
+            'whatsapp' => $shop->whatsappNumber(),
+        ]);
+    }
 }

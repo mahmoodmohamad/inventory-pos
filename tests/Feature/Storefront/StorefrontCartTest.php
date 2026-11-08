@@ -91,3 +91,11 @@ it('rejects an invalid quantity', function () {
 
     $this->post(cartUrl($shop), ['product_id' => $p->id, 'qty' => 1000])->assertSessionHasErrors('qty');
 });
+it('totals the cart without float drift', function () {
+    $shop = cartShop();
+    $p = Product::factory()->for($shop)->withStock(50)->create(['name' => 'Drift Part', 'retail_price' => '0.10']);
+
+    $this->post(cartUrl($shop), ['product_id' => $p->id, 'qty' => 3]);
+
+    $this->get(cartUrl($shop))->assertOk()->assertSee('0.30');
+});
