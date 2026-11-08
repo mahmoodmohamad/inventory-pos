@@ -3,10 +3,12 @@
     $currency = $shop->currency === 'EGP' ? 'ج.م' : $shop->currency;
     $hasFilters = filled($filters['q'] ?? null) || filled($filters['make'] ?? null) || filled($filters['condition'] ?? null);
     $money = fn (float $n): string => number_format($n, floor($n) == $n ? 0 : 2);
+    $without = fn (array $keys) => request()->fullUrlWithoutQuery([...$keys, 'page']);
     $products->withQueryString();
 @endphp
 
 <x-layouts::storefront :shop="$shop">
+    {{-- Car picker --}}
     <form method="GET" action="{{ $base }}" class="sf-picker" role="search">
         <h1>اختار عربيتك</h1>
         <p>هنعرض لك القطع اللي بتركب عليها حسب الماركة والموديل وسنة الصنع.</p>
@@ -17,7 +19,7 @@
 
         <div class="sf-selects">
             <div class="sf-field">
-                <label for="sf-make">الماركة</label>
+                <label for="sf-make"><span class="sf-step">1</span>الماركة</label>
                 <select id="sf-make" name="make" class="sf-select"
                     onchange="this.form.model.value=''; this.form.variant.value=''; this.form.submit()">
                     <option value="">كل الماركات</option>
@@ -28,7 +30,7 @@
             </div>
 
             <div class="sf-field">
-                <label for="sf-model">الموديل</label>
+                <label for="sf-model"><span class="sf-step">2</span>الموديل</label>
                 <select id="sf-model" name="model" class="sf-select" @disabled($models->isEmpty())
                     onchange="this.form.variant.value=''; this.form.submit()">
                     <option value="">{{ $models->isEmpty() ? 'اختار الماركة الأول' : 'كل الموديلات' }}</option>
@@ -39,7 +41,7 @@
             </div>
 
             <div class="sf-field">
-                <label for="sf-variant">الفئة وسنة الصنع</label>
+                <label for="sf-variant"><span class="sf-step">3</span>الفئة وسنة الصنع</label>
                 <select id="sf-variant" name="variant" class="sf-select" @disabled($variants->isEmpty()) onchange="this.form.submit()">
                     <option value="">{{ $variants->isEmpty() ? 'اختار الموديل الأول' : 'كل الفئات' }}</option>
                     @foreach ($variants as $variant)
@@ -58,13 +60,27 @@
         </div>
     </form>
 
+    {{-- Results bar --}}
     <div class="sf-bar">
         <div>
             <p class="sf-count">
                 {{ $products->total() }} قطعة@if ($carLabel) تركب على {{ $carLabel }}@endif
             </p>
+
             @if ($hasFilters)
-                <a class="sf-clear" href="{{ $base }}">مسح الفلاتر</a>
+                <div class="sf-active">
+                    @if ($carLabel)
+                        <a class="sf-tag" href="{{ $without(['make', 'model', 'variant']) }}">
+                            {{ $carLabel }} <span aria-hidden="true">×</span><span class="sf-sr">إزالة فلتر السيارة</span>
+                        </a>
+                    @endif
+                    @if (filled($filters['q'] ?? null))
+                        <a class="sf-tag" href="{{ $without(['q']) }}">
+                            <bdi>{{ $filters['q'] }}</bdi> <span aria-hidden="true">×</span><span class="sf-sr">إزالة البحث</span>
+                        </a>
+                    @endif
+                    <a class="sf-clear" href="{{ $base }}">مسح الكل</a>
+                </div>
             @endif
         </div>
 
@@ -78,17 +94,21 @@
         </nav>
     </div>
 
+    {{-- Grid --}}
     <div class="sf-grid">
         @forelse ($products as $product)
-            <article class="sf-card">
+            <article class="sf-card" data-k="{{ $product['condition_key'] }}">
                 <div class="sf-card-top">
                     <span class="sf-cond" data-k="{{ $product['condition_key'] }}">{{ $product['condition'] }}</span>
                     <span class="sf-stock {{ $product['in_stock'] ? 'is-in' : 'is-out' }}">
+                        <span class="sf-stock-dot" aria-hidden="true"></span>
                         {{ $product['in_stock'] ? 'متوفر' : 'غير متوفر حاليًا' }}
                     </span>
                 </div>
 
-                <h2 class="sf-name">{{ $product['name'] }}</h2>
+                <h2 class="sf-name">
+                    <a href="{{ route('storefront.products.show', ['shopSlug' => $shop->slug, 'productId' => $product['id']]) }}">{{ $product['name'] }}</a>
+                </h2>
 
                 @if ($product['part_number'] || $product['oem_number'])
                     <div class="sf-codes">
@@ -105,6 +125,10 @@
                     <p class="sf-brand-line">{{ $product['brand'] }}</p>
                 @endif
 
+                @if ($carLabel)
+                    <span class="sf-fits">✓ يركب على {{ $carLabel }}</span>
+                @endif
+
                 <div class="sf-foot">
                     @if ($product['price'] > 0)
                         <span class="sf-price">{{ $money($product['price']) }}<small>{{ $currency }}</small></span>
@@ -113,23 +137,26 @@
                     @endif
 
                     <div class="sf-actions">
-    @if ($product['in_stock'])
-        <form method="POST" action="{{ route('storefront.cart.store', ['shopSlug' => $shop->slug]) }}">
-            @csrf
-            <input type="hidden" name="product_id" value="{{ $product['id'] }}">
-            <button type="submit" class="sf-add">أضف للسلة</button>
-        </form>
-    @endif
+                        @if ($product['in_stock'])
+                            <form method="POST" action="{{ route('storefront.cart.store', ['shopSlug' => $shop->slug]) }}">
+                                @csrf
+                                <input type="hidden" name="product_id" value="{{ $product['id'] }}">
+                                <button type="submit" class="sf-add">أضف للسلة</button>
+                            </form>
+                        @endif
 
-    @if ($whatsapp)
-        @php
-            $msg = 'السلام عليكم، عايز أسأل عن: '.$product['name']
-                .($product['part_number'] ? ' ('.$product['part_number'].')' : '');
-        @endphp
-        <a class="sf-wa" target="_blank" rel="noopener"
-            href="https://wa.me/{{ $whatsapp }}?text={{ rawurlencode($msg) }}">اسأل على واتساب</a>
-    @endif
-</div>
+                        @if ($whatsapp)
+                            @php
+                                $msg = 'السلام عليكم، عايز أسأل عن: '.$product['name']
+                                    .($product['part_number'] ? ' ('.$product['part_number'].')' : '');
+                            @endphp
+                            <a class="sf-wa" target="_blank" rel="noopener noreferrer"
+                                href="https://wa.me/{{ $whatsapp }}?text={{ rawurlencode($msg) }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+                                واتساب
+                            </a>
+                        @endif
+                    </div>
                 </div>
             </article>
         @empty
@@ -137,7 +164,7 @@
                 <strong>مفيش قطع مطابقة</strong>
                 جرّب تشيل فلتر النوع، أو ابحث برقم القطعة بس.
                 @if ($hasFilters)
-                    <div style="margin-top:.75rem"><a href="{{ $base }}">عرض كل القطع</a></div>
+                    <div style="margin-block-start:.75rem"><a href="{{ $base }}">عرض كل القطع</a></div>
                 @endif
             </div>
         @endforelse
@@ -148,13 +175,13 @@
             @if ($products->onFirstPage())
                 <span class="sf-page is-off">السابق</span>
             @else
-                <a class="sf-page" href="{{ $products->previousPageUrl() }}">السابق</a>
+                <a class="sf-page" href="{{ $products->previousPageUrl() }}" rel="prev">السابق</a>
             @endif
 
             <span class="sf-muted">صفحة {{ $products->currentPage() }} من {{ $products->lastPage() }}</span>
 
             @if ($products->hasMorePages())
-                <a class="sf-page" href="{{ $products->nextPageUrl() }}">التالي</a>
+                <a class="sf-page" href="{{ $products->nextPageUrl() }}" rel="next">التالي</a>
             @else
                 <span class="sf-page is-off">التالي</span>
             @endif

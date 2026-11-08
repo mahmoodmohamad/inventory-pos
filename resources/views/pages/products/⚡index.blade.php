@@ -263,7 +263,7 @@ new #[Title('المنتجات')] class extends Component
         $this->authorize('adjustStock', $product);
 
         $this->validate([
-            'adjustQty' => ['required', 'numeric', 'between:-999999999,999999999'],
+            'adjustQty' => ['required', 'numeric', 'regex:/\A-?\d{1,9}(?:\.\d{1,3})?\z/', 'between:-999999999.999,999999999.999'],
             'adjustNotes' => ['required', 'string', 'max:255'],
         ]);
 
@@ -274,7 +274,7 @@ new #[Title('المنتجات')] class extends Component
         }
 
         try {
-            app(StockService::class)->adjust($product, (float) $this->adjustQty, trim($this->adjustNotes));
+            app(StockService::class)->adjust($product, $this->adjustQty, trim($this->adjustNotes));
         } catch (InsufficientStockException) {
             $this->addError('adjustQty', __('الرصيد لا يكفي لهذه التسوية.'));
 

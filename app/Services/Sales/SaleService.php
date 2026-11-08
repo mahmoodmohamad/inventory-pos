@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services\Sales;
 
+use App\Enums\LedgerDirection;
+use App\Enums\LedgerSource;
+use App\Enums\PaymentMethod;
 use App\Enums\PriceType;
 use App\Enums\SaleStatus;
+use App\Exceptions\InsufficientStockException;
 use App\Models\Customer;
+use App\Models\CustomerLedger;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\User;
+use App\Services\StockService;
 use App\Support\Money;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +30,10 @@ use InvalidArgumentException;
  */
 final class SaleService
 {
-    public function __construct(private InvoiceNumberGenerator $numbers) {}
+    public function __construct(
+        private InvoiceNumberGenerator $numbers,
+        private StockService $stock,
+    ) {}
 
     public function createDraft(User $actor, ?int $customerId, PriceType $priceType): Sale
     {
@@ -54,7 +64,7 @@ final class SaleService
         return DB::transaction(function () use ($actor, $sale, $productId, $qty, $requestedPrice): SaleItem {
             $locked = $this->lockDraft($actor, $sale);
 
-            $product = Product::query()->where('is_active', true)->findOrFail($productId);
+            $product = Product::query()->lockForUpdate()->findOrFail($productId);
 
             $original = $locked->price_type === PriceType::Wholesale
                 ? Money::norm($product->wholesale_price)
@@ -203,6 +213,123 @@ final class SaleService
         });
     }
 
+    /**
+     * ترحيل الفاتورة: مخزون + دفع + ledger في transaction واحدة.
+     * $paid = المبلغ المستلم (ممكن يزيد عن الإجمالي في الكاش بس، والزيادة فكة).
+     */
+    public function complete(User $actor, Sale $sale, ?PaymentMethod $method, string $paid, ?string $notes = null): Sale
+    {
+        Gate::forUser($actor)->authorize('complete', $sale);
+        $paid = $this->money($paid);
+
+        return DB::transaction(function () use ($actor, $sale, $method, $paid, $notes): Sale {
+            $locked = $this->lockDraft($actor, $sale);
+
+            $items = $locked->items()->orderBy('product_id')->orderBy('id')->get();
+
+            if ($items->isEmpty()) {
+                throw new DomainException(__('الفاتورة فاضية. ضيف بند واحد على الأقل.'));
+            }
+
+            // ---- فحص الدفع قبل أي حركة مخزون ----
+            $total = Money::norm($locked->total_amount);
+            $overpaid = Money::cmp($paid, $total, 2) === 1;
+
+            if ($overpaid && $method !== PaymentMethod::Cash) {
+                throw new DomainException(__('المبلغ المدفوع أكبر من إجمالي الفاتورة.'));
+            }
+
+            if (Money::cmp($paid, '0', 2) === 1 && $method === null) {
+                throw new DomainException(__('اختار طريقة الدفع.'));
+            }
+
+            $applied = $overpaid ? $total : $paid;   // الفكة مش إيراد
+            $due = Money::sub($total, $applied, 2);
+
+            if (Money::cmp($due, '0', 2) === 1) {
+                $customerOk = $locked->customer_id !== null
+                    && Customer::query()->where('is_active', true)->whereKey($locked->customer_id)->exists();
+
+                if (! $customerOk) {
+                    throw new DomainException(__('فيه مبلغ متبقي. اختار عميل نشط عشان يتسجل عليه.'));
+                }
+            }
+
+            // ---- المخزون + تجميد التكلفة من حركة البيع الفعلية ----
+            foreach ($items as $item) {
+                $product = Product::query()->find($item->product_id);
+
+                if ($product === null || ! $product->is_active) {
+                    throw new DomainException(__('المنتج ":name" محذوف أو موقوف.', ['name' => $item->product_name]));
+                }
+
+                try {
+                    $movement = $this->stock->sale(
+                        $product,
+                        (string) $item->quantity,
+                        $locked,
+                        'فاتورة #'.$locked->invoice_number,
+                    );
+                } catch (InsufficientStockException) {
+                    throw new DomainException(__('الرصيد لا يكفي للمنتج ":name".', ['name' => $item->product_name]));
+                }
+
+                // الفاتورة لسه draft في الـ DB هنا، فالـ guard بتاع SaleItem بيسمح
+                $item->forceFill(['unit_cost' => Money::norm($movement->unit_cost)])->save();
+            }
+
+            // ---- الدفع والـ ledger ----
+            $now = now();
+            $customerId = $locked->customer_id;
+            $payment = null;
+
+            if (Money::cmp($applied, '0', 2) === 1) {
+                $payment = Payment::query()->create([
+                    'sale_id' => $locked->id,
+                    'customer_id' => $customerId,
+                    'received_by' => $actor->id,
+                    'amount' => $applied,
+                    'method' => $method->value,
+                    'paid_at' => $now,
+                ]);
+            }
+
+            if ($customerId !== null && Money::cmp($total, '0', 2) === 1) {
+                CustomerLedger::query()->create([
+                    'customer_id' => $customerId,
+                    'sale_id' => $locked->id,
+                    'created_by' => $actor->id,
+                    'source' => LedgerSource::Invoice,
+                    'direction' => LedgerDirection::Debit,
+                    'amount' => $total,
+                    'occurred_at' => $now,
+                ]);
+
+                if ($payment !== null) {
+                    CustomerLedger::query()->create([
+                        'customer_id' => $customerId,
+                        'sale_id' => $locked->id,
+                        'payment_id' => $payment->id,
+                        'created_by' => $actor->id,
+                        'source' => LedgerSource::Payment,
+                        'direction' => LedgerDirection::Credit,
+                        'amount' => $applied,
+                        'occurred_at' => $now,
+                    ]);
+                }
+            }
+
+            // ---- آخر خطوة: قلب الحالة ----
+            $locked->forceFill([
+                'notes' => $notes,
+                'status' => SaleStatus::Completed,
+                'completed_by' => $actor->id,
+                'completed_at' => $now,
+            ])->save();
+
+            return $locked->refresh();
+        });
+    }
     // ---------- internals ----------
 
     private function lockDraft(User $actor, Sale $sale): Sale

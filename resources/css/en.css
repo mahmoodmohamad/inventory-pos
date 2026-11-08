@@ -1,0 +1,9 @@
+/* English locale. Load AFTER storefront.css. Needs <html lang="en" dir="ltr">. */
+:root {
+  --sf-font: "Inter", Arial, system-ui, sans-serif;
+  --sf-lh: 1.6;
+  --sf-track-tight: -.03em;
+  --sf-w-semi: 600;
+  --sf-w-bold: 700;
+  --sf-w-heavy: 800;
+}

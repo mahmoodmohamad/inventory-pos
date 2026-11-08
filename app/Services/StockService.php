@@ -11,6 +11,7 @@ use App\Exceptions\InsufficientStockException;
 use App\Models\Product;
 use App\Models\Shop;
 use App\Models\StockMovement;
+use App\Support\Money;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -22,83 +23,172 @@ use InvalidArgumentException;
  */
 final class StockService
 {
+    /** @var numeric-string */
+    private const MAX_QTY = '999999999.999';
+
+    /** @var numeric-string */
+    private const MAX_UNIT_COST = '99999999.9999';
+
     public function __construct(private TenantContext $tenant) {}
 
-    public function openingBalance(Product|int $product, float $qty, float $unitCost, ?string $notes = null): StockMovement
-    {
-        $this->assertPositive($qty);
-
-        return $this->record($product, StockMovementType::Opening, $qty, $unitCost, null, $notes);
+    public function openingBalance(
+        Product|int $product,
+        string|int|float $qty,
+        string|int|float $unitCost,
+        ?string $notes = null,
+    ): StockMovement {
+        return $this->record(
+            $product,
+            StockMovementType::Opening,
+            $this->positiveQuantity($qty),
+            $this->unitCost($unitCost),
+            null,
+            $notes,
+        );
     }
 
-    public function purchase(Product|int $product, float $qty, float $unitCost, ?Model $reference = null, ?string $notes = null): StockMovement
-    {
-        $this->assertPositive($qty);
-
-        return $this->record($product, StockMovementType::Purchase, $qty, $unitCost, $reference, $notes);
+    public function purchase(
+        Product|int $product,
+        string|int|float $qty,
+        string|int|float $unitCost,
+        ?Model $reference = null,
+        ?string $notes = null,
+    ): StockMovement {
+        return $this->record(
+            $product,
+            StockMovementType::Purchase,
+            $this->positiveQuantity($qty),
+            $this->unitCost($unitCost),
+            $reference,
+            $notes,
+        );
     }
 
     /** التكلفة = لقطة من المتوسط الحالي (بتتحفظ في sale_items.unit_cost) */
-    public function sale(Product|int $product, float $qty, ?Model $reference = null, ?string $notes = null): StockMovement
-    {
-        $this->assertPositive($qty);
-
-        return $this->record($product, StockMovementType::Sale, -$qty, null, $reference, $notes);
+    public function sale(
+        Product|int $product,
+        string|int|float $qty,
+        ?Model $reference = null,
+        ?string $notes = null,
+    ): StockMovement {
+        return $this->record(
+            $product,
+            StockMovementType::Sale,
+            bcsub('0', $this->positiveQuantity($qty), 3),
+            null,
+            $reference,
+            $notes,
+        );
     }
 
     /** $originalUnitCost = unit_cost بتاع سطر الفاتورة الأصلي */
-    public function saleReturn(Product|int $product, float $qty, float $originalUnitCost, ?Model $reference = null, ?string $notes = null): StockMovement
-    {
-        $this->assertPositive($qty);
-
-        return $this->record($product, StockMovementType::SaleReturn, $qty, $originalUnitCost, $reference, $notes);
+    public function saleReturn(
+        Product|int $product,
+        string|int|float $qty,
+        string|int|float $originalUnitCost,
+        ?Model $reference = null,
+        ?string $notes = null,
+    ): StockMovement {
+        return $this->record(
+            $product,
+            StockMovementType::SaleReturn,
+            $this->positiveQuantity($qty),
+            $this->unitCost($originalUnitCost),
+            $reference,
+            $notes,
+        );
     }
 
-    public function purchaseReturn(Product|int $product, float $qty, ?Model $reference = null, ?string $notes = null): StockMovement
-    {
-        $this->assertPositive($qty);
-
-        return $this->record($product, StockMovementType::PurchaseReturn, -$qty, null, $reference, $notes);
+    public function purchaseReturn(
+        Product|int $product,
+        string|int|float $qty,
+        ?Model $reference = null,
+        ?string $notes = null,
+    ): StockMovement {
+        return $this->record(
+            $product,
+            StockMovementType::PurchaseReturn,
+            bcsub('0', $this->positiveQuantity($qty), 3),
+            null,
+            $reference,
+            $notes,
+        );
     }
 
     /** $signedQty موجب = زيادة، سالب = عجز. بتتسجّل بالمتوسط الحالي */
-    public function adjust(Product|int $product, float $signedQty, string $notes): StockMovement
-    {
-        if ($signedQty == 0.0) {
+    public function adjust(
+        Product|int $product,
+        string|int|float $signedQty,
+        string $notes,
+    ): StockMovement {
+        $quantity = $this->quantity($signedQty, allowNegative: true);
+
+        if (bccomp($quantity, '0', 3) === 0) {
             throw new InvalidArgumentException('Adjustment quantity cannot be zero.');
         }
 
-        return $this->record($product, StockMovementType::Adjustment, $signedQty, null, null, $notes);
+        return $this->record($product, StockMovementType::Adjustment, $quantity, null, null, $notes);
     }
 
+    /**
+     * @param  numeric-string  $signedQty
+     * @param  numeric-string|null  $unitCost
+     */
     private function record(
         Product|int $product,
         StockMovementType $type,
-        float $signedQty,
-        ?float $unitCost,
+        string $signedQty,
+        ?string $unitCost,
         ?Model $reference,
         ?string $notes,
     ): StockMovement {
         $productId = $product instanceof Product ? (int) $product->getKey() : $product;
         $shopId = $this->tenant->idOrFail();
 
-        return DB::transaction(function () use ($productId, $shopId, $type, $signedQty, $unitCost, $reference, $notes): StockMovement {
+        return DB::transaction(function () use (
+            $productId,
+            $shopId,
+            $type,
+            $signedQty,
+            $unitCost,
+            $reference,
+            $notes,
+        ): StockMovement {
             // الـ ShopScope بيضمن إن المنتج من نفس المحل (غير كده ModelNotFoundException)
             $locked = Product::query()->lockForUpdate()->findOrFail($productId);
 
-            $oldQty = (float) $locked->stock_qty;
-            $oldAvg = (float) $locked->avg_cost;
-            $newQty = round($oldQty + $signedQty, 3);
+            $oldQty = Money::norm($locked->stock_qty);
+            $oldAvg = Money::norm($locked->avg_cost);
+            $newQty = bcadd($oldQty, $signedQty, 3);
 
-            if ($signedQty < 0 && $newQty < 0 && ! $this->allowsNegativeStock($shopId)) {
-                throw InsufficientStockException::for($productId, $oldQty, abs($signedQty));
+            if (bccomp($newQty, self::MAX_QTY, 3) === 1
+                || bccomp($newQty, '-'.self::MAX_QTY, 3) === -1
+            ) {
+                throw new InvalidArgumentException('Stock quantity exceeds the database column range.');
+            }
+
+            if (bccomp($signedQty, '0', 3) === -1
+                && bccomp($newQty, '0', 3) === -1
+                && ! $this->allowsNegativeStock($shopId)
+            ) {
+                throw InsufficientStockException::for(
+                    $productId,
+                    (float) $oldQty,
+                    (float) ltrim($signedQty, '-'),
+                );
             }
 
             if ($type->entersAverage()) {
-                $cost = (float) $unitCost;
-                // الرصيد السالب بيتحسب صفر في المتوسط
-                $base = max($oldQty, 0.0);
-                $newAvg = round((($base * $oldAvg) + ($signedQty * $cost)) / ($base + $signedQty), 4);
+                $cost = $unitCost
+                    ?? throw new InvalidArgumentException('A unit cost is required for this stock movement.');
+
+                // الرصيد السالب يتجاهل في المتوسط. نحسب بالنصوص العشرية لتجنب انحراف float.
+                $base = bccomp($oldQty, '0', 3) > 0 ? $oldQty : '0.000';
+                $denominator = bcadd($base, $signedQty, 3);
+                $weightedBase = bcmul($base, $oldAvg, 8);
+                $weightedIncoming = bcmul($signedQty, $cost, 8);
+                $weightedTotal = bcadd($weightedBase, $weightedIncoming, 8);
+                $newAvg = Money::round(bcdiv($weightedTotal, $denominator, 8), 4);
             } else {
                 $cost = $unitCost ?? $oldAvg;
                 $newAvg = $oldAvg;
@@ -143,10 +233,60 @@ final class StockService
         return (bool) ($shop?->setting('allow_negative_stock', true) ?? true);
     }
 
-    private function assertPositive(float $qty): void
+    /** @return numeric-string */
+    private function positiveQuantity(string|int|float $value): string
     {
-        if ($qty <= 0) {
+        $quantity = $this->quantity($value, allowNegative: false);
+
+        if (bccomp($quantity, '0', 3) !== 1) {
             throw new InvalidArgumentException('Quantity must be greater than zero.');
         }
+
+        return $quantity;
+    }
+
+    /** @return numeric-string */
+    private function quantity(string|int|float $value, bool $allowNegative): string
+    {
+        $raw = Money::norm($value);
+
+        if (preg_match('/\A-?\d+(?:\.\d+)?\z/', $raw) !== 1) {
+            throw new InvalidArgumentException('Invalid quantity.');
+        }
+
+        $unsigned = str_starts_with($raw, '-') ? substr($raw, 1) : $raw;
+        $fraction = explode('.', $unsigned, 2)[1] ?? '';
+
+        if (strlen($fraction) > 3 || (! $allowNegative && str_starts_with($raw, '-'))) {
+            throw new InvalidArgumentException('Quantity must have at most three decimal places.');
+        }
+
+        $quantity = bcadd($raw, '0', 3);
+
+        if (bccomp($quantity, self::MAX_QTY, 3) === 1
+            || bccomp($quantity, '-'.self::MAX_QTY, 3) === -1
+        ) {
+            throw new InvalidArgumentException('Quantity exceeds the database column range.');
+        }
+
+        return $quantity;
+    }
+
+    /** @return numeric-string */
+    private function unitCost(string|int|float $value): string
+    {
+        $raw = Money::norm($value);
+
+        if (preg_match('/\A\d+(?:\.\d+)?\z/', $raw) !== 1) {
+            throw new InvalidArgumentException('Unit cost must be a non-negative decimal value.');
+        }
+
+        $fraction = explode('.', $raw, 2)[1] ?? '';
+
+        if (strlen($fraction) > 4 || bccomp($raw, self::MAX_UNIT_COST, 4) === 1) {
+            throw new InvalidArgumentException('Unit cost exceeds the database column range or precision.');
+        }
+
+        return bcadd($raw, '0', 4);
     }
 }

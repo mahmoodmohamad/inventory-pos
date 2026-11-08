@@ -100,9 +100,17 @@
             Stock Transfers
         </flux:sidebar.item>
 
-        <flux:sidebar.item>
-            Suppliers
-        </flux:sidebar.item>
+        @can('viewAny', App\Models\Supplier::class)
+    <flux:sidebar.item :href="route('suppliers.index')" :current="request()->routeIs('suppliers.*')" wire:navigate>
+        Suppliers
+    </flux:sidebar.item>
+@endcan
+
+@can('viewAny', App\Models\Purchase::class)
+    <flux:sidebar.item :href="route('purchases.index')" :current="request()->routeIs('purchases.*')" wire:navigate>
+        Purchases
+    </flux:sidebar.item>
+@endcan
     </flux:sidebar.group>
 
     {{-- Sales --}}
@@ -120,9 +128,11 @@
             Orders
         </flux:sidebar.item>
 
-        <flux:sidebar.item>
-            Customers
-        </flux:sidebar.item>
+        @can('viewAny', App\Models\Customer::class)
+            <flux:sidebar.item :href="route('customers.index')" :current="request()->routeIs('customers.*')" wire:navigate>
+                Customers
+            </flux:sidebar.item>
+        @endcan
     </flux:sidebar.group>
 
     {{-- Administration --}}

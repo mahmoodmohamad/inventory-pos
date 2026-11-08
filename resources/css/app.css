@@ -1,6 +1,4 @@
 @import 'tailwindcss';
-@import './base/general.css';
-@import './pages/products.css';
 @source '../views';
 @source '../../app';
 @import '../../vendor/livewire/flux/dist/flux.css';

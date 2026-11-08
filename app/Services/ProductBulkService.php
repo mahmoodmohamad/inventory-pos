@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
@@ -13,6 +14,9 @@ use InvalidArgumentException;
 /**
  * العمليات الجماعية على المنتجات. الـ Service ده هو اللي بيقرر
  * إيه اللي يتنفذ وإيه اللي يتخطى، والـ component بس بيعرض النتيجة.
+ *
+ * الحذف الفردي كمان بيعدّي من هنا (apply بـ id واحد) عشان فحص الرصيد والحذف
+ * يحصلوا تحت نفس الـ lock اللي بيستخدمه StockService.
  */
 final class ProductBulkService
 {
@@ -44,8 +48,14 @@ final class ProductBulkService
         $skipped = 0;
 
         DB::transaction(function () use ($actor, $action, $ids, &$done, &$skipped): void {
-            // الـ ShopScope بيضمن إن الـ ids الغريبة مش هترجع أصلًا
-            $products = Product::query()->whereIn('id', $ids)->get();
+            // الـ ShopScope بيضمن إن الـ ids الغريبة مش هترجع أصلًا.
+            // lockForUpdate بيمنع StockService من تغيير الرصيد بين الفحص والحذف،
+            // والترتيب بالـ id بيقلل احتمال الـ deadlock بين عمليتين جماعيتين.
+            $products = Product::query()
+                ->whereIn('id', $ids)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
             // ids مش لاقيينها (محل تاني أو اتحذفت) بتتحسب متخطية
             $skipped += count($ids) - $products->count();
@@ -88,6 +98,6 @@ final class ProductBulkService
 
     private function hasZeroStock(Product $product): bool
     {
-        return (float) $product->stock_qty === 0.0;
+        return Money::cmp($product->stock_qty, '0', 3) === 0;
     }
 }
