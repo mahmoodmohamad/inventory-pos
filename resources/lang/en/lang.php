@@ -101,4 +101,88 @@ return [
     'final' => 'Ready to organise your shop?',
     'final_sub' => 'Register today and add your first product.',
     'switch' => 'العربية',
+
+    'currency_egp' => 'EGP',
+
+    'choose_car' => 'Choose Your Car',
+    'choose_car_description' => 'Find compatible parts by selecting your car make, model, and year.',
+
+    'make' => 'Make',
+    'all_makes' => 'All Makes',
+    'model' => 'Model',
+    'all_models' => 'All Models',
+    'select_make_first' => 'Select a make first',
+    'variant_year' => 'Variant & Year',
+    'all_variants' => 'All Variants',
+    'select_model_first' => 'Select a model first',
+    'present' => 'Present',
+
+    'search_placeholder' => 'Search by part number or name, e.g. 04465',
+    'search_aria_label' => 'Search by part number or product name',
+    'show_products' => 'Show Products',
+
+    'products_count' => ':count products',
+    'fits_on_car' => 'Fits :car',
+    'remove_car_filter' => 'Remove car filter',
+    'remove_search_filter' => 'Remove search filter',
+    'clear_all' => 'Clear All',
+
+    'product_condition' => 'Product condition',
+    'all' => 'All',
+
+    'in_stock' => 'In Stock',
+    'out_of_stock' => 'Currently Unavailable',
+
+    'price_on_request' => 'Price on Request',
+    'add_to_cart' => 'Add to Cart',
+    'whatsapp' => 'WhatsApp',
+
+    'whatsapp_product_message' => 'Hello, I would like to ask about: :product (:part_number)',
+
+    'no_matching_products' => 'No Matching Products',
+    'no_matching_products_hint' => 'Try removing the condition filter or searching by part number only.',
+    'show_all_products' => 'Show All Products',
+
+    'pagination' => 'Pagination',
+    'previous' => 'Previous',
+    'next' => 'Next',
+    'page_of' => 'Page :current of :last',
+
+    'breadcrumb' => 'Breadcrumb',
+    'home' => 'Home',
+
+    'brand' => 'Brand',
+    'category' => 'Category',
+
+    'product_identification' => 'Product Identification',
+    'verify_part_numbers' => 'Verify the part numbers before placing your order.',
+    'part_number' => 'Part Number',
+    'oem_number' => 'OEM Number',
+    'barcode' => 'Barcode',
+    'no_identification_numbers' => 'No identification numbers are available for this product.',
+
+    'product_details' => 'Product Details',
+    'additional_product_information' => 'Additional information about this product.',
+
+    'purchase_details' => 'Purchase Details',
+    'available_to_order' => 'Available to Order',
+    'currently_unavailable' => 'Currently Unavailable',
+    'product_price' => 'Product Price',
+    'price_on_request' => 'Price on Request',
+    'add_to_cart' => 'Add to Cart',
+    'ask_on_whatsapp' => 'Ask About This Product on WhatsApp',
+    'check_compatibility_before_order' => 'Please verify the part number and vehicle compatibility before ordering.',
+    'whatsapp_product_message' => 'Hello, I would like to ask about: :product',
+
+    'compatible_vehicles' => 'Compatible Vehicles',
+    'compatible_vehicles_description' => 'Vehicle models and variants compatible with this part.',
+    'fitments_count' => ':count compatible applications',
+    'compatible' => 'Compatible',
+    'vehicle_compatibility' => 'Vehicle Compatibility',
+    'no_fitment_data' => 'Vehicle compatibility information has not been added yet. Contact us to confirm whether this part fits your vehicle.',
+    'ask_about_compatibility' => 'Ask About Compatibility',
+
+    'back_to_products' => 'Back to All Products',
+    'present' => 'Present',
+
 ];

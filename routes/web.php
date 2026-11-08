@@ -8,6 +8,8 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Shop;
+
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -19,6 +21,15 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/', function () {
+    $shop = Shop::first();
+
+    if (!$shop) {
+        abort(404, 'No shop has been created yet.');
+    }
+
+    return view('welcome', compact('shop'));
+})->name('home');
 Route::get('/language/{locale}', function ($locale) {
     abort_unless(in_array($locale, ['ar', 'en']), 404);
 
@@ -27,7 +38,6 @@ Route::get('/language/{locale}', function ($locale) {
     return redirect()->back();
 })->name('language.switch');
 
-Route::view('/', 'welcome')->name('home');
 
 /*
 |--------------------------------------------------------------------------

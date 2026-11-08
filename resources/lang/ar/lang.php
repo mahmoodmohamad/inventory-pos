@@ -101,4 +101,88 @@ return [
     'final' => 'جاهز تنظّم محلك؟',
     'final_sub' => 'سجّل محلك النهاردة وابدأ بأول منتج.',
     'switch' => 'English',
+    'currency_egp' => 'ج.م',
+
+    'choose_car' => 'اختار عربيتك',
+    'choose_car_description' => 'هنعرض لك القطع اللي بتركب عليها حسب الماركة والموديل وسنة الصنع.',
+
+    'make' => 'الماركة',
+    'all_makes' => 'كل الماركات',
+    'model' => 'الموديل',
+    'all_models' => 'كل الموديلات',
+    'select_make_first' => 'اختار الماركة الأول',
+    'variant_year' => 'الفئة وسنة الصنع',
+    'all_variants' => 'كل الفئات',
+    'select_model_first' => 'اختار الموديل الأول',
+    'present' => 'الآن',
+
+    'search_placeholder' => 'رقم القطعة أو اسمها، مثال: 04465',
+    'search_aria_label' => 'بحث برقم القطعة أو الاسم',
+    'show_products' => 'عرض القطع',
+
+    'products_count' => ':count قطعة',
+    'fits_on_car' => 'تركيب على :car',
+    'remove_car_filter' => 'إزالة فلتر السيارة',
+    'remove_search_filter' => 'إزالة البحث',
+    'clear_all' => 'مسح الكل',
+
+    'product_condition' => 'نوع القطعة',
+    'all' => 'الكل',
+
+    'in_stock' => 'متوفر',
+    'out_of_stock' => 'غير متوفر حاليًا',
+
+    'price_on_request' => 'السعر عند السؤال',
+    'add_to_cart' => 'أضف للسلة',
+    'whatsapp' => 'واتساب',
+
+    'whatsapp_product_message' => 'السلام عليكم، عايز أسأل عن: :product (:part_number)',
+
+    'no_matching_products' => 'مفيش قطع مطابقة',
+    'no_matching_products_hint' => 'جرّب تشيل فلتر النوع، أو ابحث برقم القطعة بس.',
+    'show_all_products' => 'عرض كل القطع',
+
+    'pagination' => 'الصفحات',
+    'previous' => 'السابق',
+    'next' => 'التالي',
+    'page_of' => 'صفحة :current من :last',
+
+
+    'breadcrumb' => 'مسار التنقل',
+    'home' => 'الرئيسية',
+
+    'brand' => 'الماركة',
+    'category' => 'القسم',
+
+    'product_identification' => 'بيانات القطعة',
+    'verify_part_numbers' => 'تأكد من أرقام القطعة قبل إتمام الطلب',
+    'part_number' => 'رقم القطعة',
+    'oem_number' => 'رقم OEM',
+    'barcode' => 'الباركود',
+    'no_identification_numbers' => 'لا توجد أرقام تعريف مسجلة لهذه القطعة.',
+
+    'product_details' => 'تفاصيل المنتج',
+    'additional_product_information' => 'معلومات إضافية عن القطعة',
+
+    'purchase_details' => 'تفاصيل الشراء',
+    'available_to_order' => 'القطعة متاحة للطلب',
+    'currently_unavailable' => 'القطعة غير متاحة حاليًا',
+    'product_price' => 'سعر المنتج',
+    'price_on_request' => 'السعر عند السؤال',
+    'add_to_cart' => 'أضف للسلة',
+    'ask_on_whatsapp' => 'اسأل عن المنتج على واتساب',
+    'check_compatibility_before_order' => 'راجع رقم القطعة وتوافقها مع سيارتك قبل الطلب.',
+    'whatsapp_product_message' => 'السلام عليكم، عايز أسأل عن: :product',
+
+    'compatible_vehicles' => 'السيارات المتوافق معها',
+    'compatible_vehicles_description' => 'قائمة بالموديلات والفئات التي تناسبها هذه القطعة',
+    'fitments_count' => ':count توافق',
+    'compatible' => 'متوافق',
+    'vehicle_compatibility' => 'توافق السيارات',
+    'no_fitment_data' => 'لم تتم إضافة بيانات توافق السيارات لهذه القطعة بعد. تواصل معنا للتأكد من مناسبتها لسيارتك.',
+    'ask_about_compatibility' => 'اسأل عن التوافق',
+
+    'back_to_products' => 'العودة إلى جميع المنتجات',
+    'present' => 'الآن',
+
 ];

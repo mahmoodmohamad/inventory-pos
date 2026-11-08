@@ -19,11 +19,15 @@ class ResolvePublicShop
             ->where('is_active', true)
             ->first();
 
-        // نفس الرد للمحل غير الموجود والمعطّل: مفيش تسريب لوجود المحل
-        abort_unless($shop !== null && $shop->setting('storefront_enabled', false), 404);
+        // نفس الرد للمحل غير الموجود والمعطّل
+        abort_unless(
+            $shop !== null && $shop->setting('storefront_enabled', false),
+            404
+        );
 
-        // الواجهة العامة بتتجاهل أي مستخدم داخل: السياق دايمًا محل الـ URL
+        // الواجهة العامة تستخدم سياق المحل الموجود في الرابط
         $this->tenant->set($shop);
+
         $request->attributes->set('storefront_shop', $shop);
 
         return $next($request);

@@ -2,7 +2,10 @@
 @php
     $base = route('storefront.index', ['shopSlug' => $shop->slug]);
 
-    $currency = $shop->currency === 'EGP' ? 'ج.م' : $shop->currency;
+    $currency = $shop->currency === 'EGP'
+        ? __('lang.currency_egp')
+        : $shop->currency;
+
     $money = fn (float $n): string => number_format(
         $n,
         floor($n) == $n ? 0 : 2
@@ -12,25 +15,36 @@
     $inStock = (bool) ($inStock ?? false);
     $fitments = $fitments ?? collect();
 
-    $msg = 'السلام عليكم، عايز أسأل عن: '.$product->name
-        .($product->part_number ? ' ('.$product->part_number.')' : '');
+    $msg = __('lang.whatsapp_product_message', [
+        'product' => $product->name,
+    ]);
+
+    if ($product->part_number) {
+        $msg .= ' (' . $product->part_number . ')';
+    }
 
     $conditionLabel = $product->condition instanceof \BackedEnum
         ? $product->condition->value
         : $product->condition;
 
     $waUrl = $whatsapp
-        ? 'https://wa.me/'.$whatsapp.'?text='.rawurlencode($msg)
+        ? 'https://wa.me/' . $whatsapp . '?text=' . rawurlencode($msg)
         : null;
 @endphp
 
 <x-layouts::storefront :shop="$shop">
 
-    <main class="sf-product-page" dir="rtl">
+    <main
+        class="sf-product-page"
+        dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}"
+    >
 
         {{-- Breadcrumb --}}
-        <nav class="sf-product-breadcrumb" aria-label="مسار التنقل">
-            <a href="{{ $base }}">الرئيسية</a>
+        <nav class="sf-product-breadcrumb" aria-label="@lang('lang.breadcrumb')">
+            <a href="{{ $base }}">
+                @lang('lang.home')
+            </a>
+
             <span aria-hidden="true">/</span>
 
             @if ($product->category)
@@ -52,14 +66,17 @@
                 <div class="sf-product-heading">
 
                     <div class="sf-product-badges">
+
                         <span class="sf-cond">
                             {{ $conditionLabel }}
                         </span>
 
                         <span class="sf-stock {{ $inStock ? 'is-in' : 'is-out' }}">
                             <span class="sf-stock-dot" aria-hidden="true"></span>
-                            {{ $inStock ? 'متوفر في المخزون' : 'غير متوفر حاليًا' }}
+
+                            {{ $inStock ? __('lang.in_stock') : __('lang.out_of_stock') }}
                         </span>
+
                     </div>
 
                     <h1 class="sf-product-title">
@@ -68,31 +85,41 @@
 
                     @if ($product->brand || $product->category)
                         <div class="sf-product-meta">
+
                             @if ($product->brand)
                                 <span>
-                                    الماركة:
+                                    @lang('lang.brand'):
                                     <strong>{{ $product->brand->name }}</strong>
                                 </span>
                             @endif
 
                             @if ($product->category)
                                 <span>
-                                    القسم:
+                                    @lang('lang.category'):
                                     <strong>{{ $product->category->name }}</strong>
                                 </span>
                             @endif
+
                         </div>
                     @endif
 
                 </div>
 
                 {{-- Product identification --}}
-                <section class="sf-product-section" aria-labelledby="sf-identification-title">
+                <section
+                    class="sf-product-section"
+                    aria-labelledby="sf-identification-title"
+                >
 
                     <div class="sf-section-heading">
                         <div>
-                            <h2 id="sf-identification-title">بيانات القطعة</h2>
-                            <p>تأكد من أرقام القطعة قبل إتمام الطلب</p>
+                            <h2 id="sf-identification-title">
+                                @lang('lang.product_identification')
+                            </h2>
+
+                            <p>
+                                @lang('lang.verify_part_numbers')
+                            </p>
                         </div>
                     </div>
 
@@ -100,28 +127,28 @@
 
                         @if ($product->part_number)
                             <div class="sf-identifier">
-                                <span>رقم القطعة</span>
+                                <span>@lang('lang.part_number')</span>
                                 <strong dir="ltr">{{ $product->part_number }}</strong>
                             </div>
                         @endif
 
                         @if ($product->oem_number)
                             <div class="sf-identifier">
-                                <span>رقم OEM</span>
+                                <span>@lang('lang.oem_number')</span>
                                 <strong dir="ltr">{{ $product->oem_number }}</strong>
                             </div>
                         @endif
 
                         @if ($product->barcode)
                             <div class="sf-identifier">
-                                <span>الباركود</span>
+                                <span>@lang('lang.barcode')</span>
                                 <strong dir="ltr">{{ $product->barcode }}</strong>
                             </div>
                         @endif
 
                         @if (!$product->part_number && !$product->oem_number && !$product->barcode)
                             <p class="sf-product-muted">
-                                لا توجد أرقام تعريف مسجلة لهذه القطعة.
+                                @lang('lang.no_identification_numbers')
                             </p>
                         @endif
 
@@ -131,11 +158,19 @@
 
                 {{-- Description --}}
                 @if ($product->notes)
-                    <section class="sf-product-section" aria-labelledby="sf-description-title">
+                    <section
+                        class="sf-product-section"
+                        aria-labelledby="sf-description-title"
+                    >
                         <div class="sf-section-heading">
                             <div>
-                                <h2 id="sf-description-title">تفاصيل المنتج</h2>
-                                <p>معلومات إضافية عن القطعة</p>
+                                <h2 id="sf-description-title">
+                                    @lang('lang.product_details')
+                                </h2>
+
+                                <p>
+                                    @lang('lang.additional_product_information')
+                                </p>
                             </div>
                         </div>
 
@@ -148,18 +183,26 @@
             </div>
 
             {{-- Purchase panel --}}
-            <aside class="sf-purchase-panel" aria-label="تفاصيل الشراء">
+            <aside
+                class="sf-purchase-panel"
+                aria-label="@lang('lang.purchase_details')"
+            >
 
                 <div class="sf-purchase-status">
+
                     <span class="sf-status-indicator {{ $inStock ? 'is-in' : 'is-out' }}"></span>
 
                     <span>
-                        {{ $inStock ? 'القطعة متاحة للطلب' : 'القطعة غير متاحة حاليًا' }}
+                        {{ $inStock ? __('lang.available_to_order') : __('lang.currently_unavailable') }}
                     </span>
+
                 </div>
 
                 <div class="sf-purchase-price">
-                    <span class="sf-price-label">سعر المنتج</span>
+
+                    <span class="sf-price-label">
+                        @lang('lang.product_price')
+                    </span>
 
                     @if ($price > 0)
                         <div class="sf-price-value">
@@ -167,34 +210,43 @@
                             <small>{{ $currency }}</small>
                         </div>
                     @else
-                        <strong class="sf-price-ask">السعر عند السؤال</strong>
+                        <strong class="sf-price-ask">
+                            @lang('lang.price_on_request')
+                        </strong>
                     @endif
+
                 </div>
 
                 <div class="sf-purchase-actions">
 
                     @if ($inStock)
-                        <form method="POST"
-                              action="{{ route('storefront.cart.store', ['shopSlug' => $shop->slug]) }}">
+                        <form
+                            method="POST"
+                            action="{{ route('storefront.cart.store', ['shopSlug' => $shop->slug]) }}"
+                        >
                             @csrf
 
-                            <input type="hidden"
-                                   name="product_id"
-                                   value="{{ $product->id }}">
+                            <input
+                                type="hidden"
+                                name="product_id"
+                                value="{{ $product->id }}"
+                            >
 
                             <button type="submit" class="sf-add sf-add-large">
-                                <span>أضف للسلة</span>
+                                <span>@lang('lang.add_to_cart')</span>
                                 <span aria-hidden="true">←</span>
                             </button>
                         </form>
                     @endif
 
                     @if ($waUrl)
-                        <a class="sf-wa sf-wa-large"
-                           href="{{ $waUrl }}"
-                           target="_blank"
-                           rel="noopener noreferrer">
-                            اسأل عن المنتج على واتساب
+                        <a
+                            class="sf-wa sf-wa-large"
+                            href="{{ $waUrl }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            @lang('lang.ask_on_whatsapp')
                         </a>
                     @endif
 
@@ -202,7 +254,10 @@
 
                 <div class="sf-purchase-note">
                     <span aria-hidden="true">✓</span>
-                    <p>راجع رقم القطعة وتوافقها مع سيارتك قبل الطلب.</p>
+
+                    <p>
+                        @lang('lang.check_compatibility_before_order')
+                    </p>
                 </div>
 
             </aside>
@@ -212,17 +267,27 @@
         {{-- Vehicle compatibility --}}
         @if ($fitments->isNotEmpty())
 
-            <section class="sf-fitments-section" aria-labelledby="sf-fitments-title">
+            <section
+                class="sf-fitments-section"
+                aria-labelledby="sf-fitments-title"
+            >
 
                 <div class="sf-section-heading sf-fitments-heading">
+
                     <div>
-                        <h2 id="sf-fitments-title">السيارات المتوافق معها</h2>
-                        <p>قائمة بالموديلات والفئات التي تناسبها هذه القطعة</p>
+                        <h2 id="sf-fitments-title">
+                            @lang('lang.compatible_vehicles')
+                        </h2>
+
+                        <p>
+                            @lang('lang.compatible_vehicles_description')
+                        </p>
                     </div>
 
                     <span class="sf-fitments-count">
-                        {{ $fitments->count() }} توافق
+                        @lang('lang.fitments_count', ['count' => $fitments->count()])
                     </span>
+
                 </div>
 
                 <div class="sf-fitments-grid">
@@ -237,12 +302,23 @@
 
                             <div class="sf-fitment-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none">
-                                    <path d="M3 13.5L5.1 8.2A2 2 0 0 1 7 7h10a2 2 0 0 1 1.9 1.2l2.1 5.3v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                                    <path d="M4 13.5h16M7 16h.01M17 16h.01M6 10h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                                    <path
+                                        d="M3 13.5L5.1 8.2A2 2 0 0 1 7 7h10a2 2 0 0 1 1.9 1.2l2.1 5.3v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5Z"
+                                        stroke="currentColor"
+                                        stroke-width="1.6"
+                                        stroke-linejoin="round"
+                                    />
+                                    <path
+                                        d="M4 13.5h16M7 16h.01M17 16h.01M6 10h12"
+                                        stroke="currentColor"
+                                        stroke-width="1.6"
+                                        stroke-linecap="round"
+                                    />
                                 </svg>
                             </div>
 
                             <div class="sf-fitment-info">
+
                                 <h3>
                                     {{ $vehicleModel?->make?->name }}
                                     {{ $vehicleModel?->name }}
@@ -252,14 +328,18 @@
                                     <p>{{ $variant->name }}</p>
                                 @endif
 
-                                <span class="sf-fitment-years">
+                                <span class="sf-fitment-years" dir="ltr">
                                     {{ $variant?->year_from ?? '—' }}
                                     –
-                                    {{ $variant?->year_to ?? 'الآن' }}
+                                    {{ $variant?->year_to ?? __('lang.present') }}
                                 </span>
+
                             </div>
 
-                            <span class="sf-fitment-check" aria-label="متوافق">
+                            <span
+                                class="sf-fitment-check"
+                                aria-label="@lang('lang.compatible')"
+                            >
                                 ✓
                             </span>
 
@@ -273,14 +353,24 @@
         @else
 
             <section class="sf-fitments-empty">
-                <h2>توافق السيارات</h2>
-                <p>لم تتم إضافة بيانات توافق السيارات لهذه القطعة بعد. تواصل معنا للتأكد من مناسبتها لسيارتك.</p>
+
+                <h2>@lang('lang.vehicle_compatibility')</h2>
+
+                <p>
+                    @lang('lang.no_fitment_data')
+                </p>
 
                 @if ($waUrl)
-                    <a class="sf-wa" href="{{ $waUrl }}" target="_blank" rel="noopener noreferrer">
-                        اسأل عن التوافق
+                    <a
+                        class="sf-wa"
+                        href="{{ $waUrl }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        @lang('lang.ask_about_compatibility')
                     </a>
                 @endif
+
             </section>
 
         @endif
@@ -289,7 +379,7 @@
         <div class="sf-product-back">
             <a href="{{ $base }}">
                 <span aria-hidden="true">→</span>
-                العودة إلى جميع المنتجات
+                @lang('lang.back_to_products')
             </a>
         </div>
 

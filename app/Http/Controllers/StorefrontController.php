@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
+use Illuminate\Http\Request;
 use App\Models\VehicleVariant;
 use App\Services\Storefront\StorefrontCatalog;
 use Illuminate\Database\Eloquent\Collection;
@@ -77,22 +78,22 @@ class StorefrontController extends Controller
         return strlen($digits) >= 10 ? $digits : null;
     }
 
-    public function show(Request $request, int $productId): View
-    {
-        /** @var Shop $shop */
-        $shop = $request->attributes->get('storefront_shop');
+    public function show(Request $request, string $shopSlug, string $productId): View
+{
+    /** @var Shop $shop */
+    $shop = $request->attributes->get('storefront_shop');
 
-        $product = Product::query()
-            ->where('is_active', true)
-            ->with(['brand', 'category', 'fitments.variant.vehicleModel.make'])
-            ->findOrFail($productId);
+    $product = Product::query()
+        ->where('is_active', true)
+        ->with(['brand', 'category', 'fitments.variant.vehicleModel.make'])
+        ->findOrFail($productId);
 
-        return view('storefront.show', [
-            'shop' => $shop,
-            'product' => $product,
-            'fitments' => $product->fitments,
-            'inStock' => (float) $product->stock_qty > 0,
-            'whatsapp' => $shop->whatsappNumber(),
-        ]);
-    }
+    return view('storefront.show', [
+        'shop' => $shop,
+        'product' => $product,
+        'fitments' => $product->fitments,
+        'inStock' => (float) $product->stock_qty > 0,
+        'whatsapp' => $shop->whatsappNumber(),
+    ]);
+}
 }
