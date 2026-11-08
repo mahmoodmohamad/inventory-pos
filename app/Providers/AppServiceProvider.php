@@ -37,13 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
     protected function registerGates(): void
     {
-        Gate::define('manage-catalog', fn (User $user): bool => $user->hasVerifiedEmail()
-            && in_array(
-                strtolower($user->email),
-                array_map('strtolower', config('app.platform_admins', [])),
-                true,
-            )
-        );
+
 
         Gate::define('view-financials', fn (User $user): bool => $user->is_active
             && in_array(
@@ -69,6 +63,14 @@ class AppServiceProvider extends ServiceProvider
                 true,
             )
         );
+        Gate::define('manage-catalog', fn (User $user): bool => $user->is_active
+    && $user->hasVerifiedEmail()
+    && in_array(
+        strtolower($user->email),
+        array_map('strtolower', config('app.platform_admins', [])),
+        true,
+    )
+);
     }
 
     protected function registerBlueprintMacros(): void

@@ -8,8 +8,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
-use App\Models\Shop;
-
+use App\Http\Controllers\HomeController;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -21,15 +20,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    $shop = Shop::first();
-
-    if (!$shop) {
-        abort(404, 'No shop has been created yet.');
-    }
-
-    return view('welcome', compact('shop'));
-})->name('home');
+Route::get('/', [HomeController::class, 'home'])->name('home');
 Route::get('/language/{locale}', function ($locale) {
     abort_unless(in_array($locale, ['ar', 'en']), 404);
 
@@ -44,7 +35,15 @@ Route::get('/language/{locale}', function ($locale) {
 | Public Storefront (guests, one shop per slug)
 |--------------------------------------------------------------------------
 */
+Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::livewire('catalog/vehicle-variants', 'catalog.vehicle-variants')
+        ->can('manage-catalog')
+        ->name('catalog.vehicle-variants');
 
+    Route::livewire('catalog/vehicles', 'catalog.vehicle-catalog')
+        ->can('manage-catalog')
+        ->name('catalog.vehicles');
+});
 Route::prefix('s/{shopSlug}')
     ->middleware([ResolvePublicShop::class, 'throttle:120,1'])
     ->name('storefront.')
