@@ -5,6 +5,8 @@ use App\Exceptions\InsufficientStockException;
 
 use App\Enums\ProductUnit;
 use App\Livewire\Forms\ProductForm;
+use App\Models\VehicleModel;
+use App\Models\VehicleVariant;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
@@ -228,20 +230,21 @@ new #[Title('المنتجات')] class extends Component
     }
 
     public function delete(int $id): void
-    {
-        $product = Product::query()->findOrFail($id);
-        $this->authorize('delete', $product);
+{
+    $product = Product::query()->findOrFail($id);
+    $this->authorize('delete', $product);
 
-        if ((float) $product->stock_qty !== 0.0) {
-            Flux::toast(variant: 'danger', text: __('لا يمكن حذف منتج رصيده لا يساوي صفر. صفّر الرصيد بتسوية أولًا.'));
+    $result = app(ProductBulkService::class)->apply(Auth::user(), ProductBulkService::DELETE, [$product->id]);
 
-            return;
-        }
+    if ($result['done'] === 0) {
+        Flux::toast(variant: 'danger', text: __('لا يمكن حذف منتج رصيده لا يساوي صفر أو موجود في مسودة فاتورة.'));
 
-        $product->delete();
-        $this->selected = array_values(array_diff($this->selected, [(string) $id]));
-        Flux::toast(text: __('تم الحذف.'));
+        return;
     }
+
+    $this->selected = array_values(array_diff($this->selected, [(string) $id]));
+    Flux::toast(text: __('تم الحذف.'));
+}
 
     // ---------- Stock adjustment ----------
 
@@ -1066,25 +1069,25 @@ private function variantsOf(string $modelId): Collection
             $delta = is_numeric($form->new_stock_qty) ? (float) $form->new_stock_qty - (float) $form->editingStock : 0;
         @endphp
 
-        <div class="ui-section">
-            <div class="ui-section-title">{{ __('تعديل الكمية (للمالك فقط)') }}</div>
+        <div class="pl-section">
+            <div class="pl-section-title">{{ __('تعديل الكمية (للمالك فقط)') }}</div>
 
-            <div class="ui-grid">
+            <div class="pl-grid">
                 <flux:input wire:model.live.debounce.300ms="form.new_stock_qty" type="number" step="0.001" min="0" :label="__('الكمية الفعلية')" />
                 <flux:input wire:model="form.stock_note" :label="__('السبب')" :placeholder="__('جرد / تصحيح خطأ ...')" />
             </div>
 
-            <div class="ui-note {{ $delta != 0 ? 'is-warn' : '' }}">
-                {{ __('الرصيد الحالي') }}: <strong class="ui-num">{{ $qty($form->editingStock) ?: '0' }}</strong>
+            <div class="pl-note {{ $delta != 0 ? 'is-warn' : '' }}">
+                {{ __('الرصيد الحالي') }}: <strong class="pl-num">{{ $qty($form->editingStock) ?: '0' }}</strong>
                 @if ($delta != 0)
-                    — {{ __('الفرق') }}: <strong class="ui-num" dir="ltr">{{ $delta > 0 ? '+' : '' }}{{ $qty($delta) }}</strong>
+                    — {{ __('الفرق') }}: <strong class="pl-num" dir="ltr">{{ $delta > 0 ? '+' : '' }}{{ $qty($delta) }}</strong>
                     ({{ __('هيتسجل كحركة تسوية في الدفتر') }})
                 @endif
             </div>
         </div>
     @else
-        <div class="ui-note">
-            {{ __('الرصيد الحالي') }}: <strong class="ui-num">{{ $qty($form->editingStock) ?: '0' }}</strong>
+        <div class="pl-note">
+            {{ __('الرصيد الحالي') }}: <strong class="pl-num">{{ $qty($form->editingStock) ?: '0' }}</strong>
             — {{ __('لتغيير الرصيد استخدم "تسوية مخزون".') }}
         </div>
     @endcan

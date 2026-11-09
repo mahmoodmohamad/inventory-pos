@@ -36,7 +36,7 @@
                     </flux:button>
                 @endcan
                 @if (in_array(strtolower(auth()->user()->email), config('app.platform_admins', []), true))
-                    <flux:button :href="route('catalog.vehicles')" wire:navigate variant="filled" icon="wrench">
+                    <flux:button :href="route('catalog.vehicle-catalog')" wire:navigate variant="filled" icon="wrench">
                         {{ __('إدارة الكتالوج') }}
                     </flux:button>
                 @endif

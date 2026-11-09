@@ -26,7 +26,7 @@
     <div class="lp lp-advanced" dir="{{ $rtl ? 'rtl' : 'ltr' }}">
 
 
-        <main id="main">
+        <div id="main">
 
             {{-- Hero --}}
             <section class="lp-hero lp-hero-advanced">
@@ -432,7 +432,7 @@
 
             </section>
 
-        </main>
+        </div>
 
         {{-- Mobile Sticky CTA --}}
         <div class="lp-mobile-cta">

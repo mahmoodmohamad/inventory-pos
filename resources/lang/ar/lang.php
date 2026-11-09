@@ -183,5 +183,12 @@ return [
 
     'back_to_products' => 'العودة إلى جميع المنتجات',
     'present' => 'الآن',
-
+  'condition' => [
+        'new'         => 'جديد',
+        'used'        => 'مستعمل',
+        'original'    => 'أصلي',
+        'aftermarket' => 'بديل',
+        'refurbished' => 'مجدد',
+        // add every value your enum defines
+    ],
 ];

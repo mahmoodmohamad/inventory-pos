@@ -34,10 +34,10 @@
 
 <x-layouts::storefront :shop="$shop">
 
-    <main
-        class="sf-product-page"
-        dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}"
-    >
+  <div
++        class="sf-product-page"
+         dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}"
+     >
 
         {{-- Breadcrumb --}}
         <nav class="sf-product-breadcrumb" aria-label="@lang('lang.breadcrumb')">
@@ -383,6 +383,6 @@
             </a>
         </div>
 
-    </main>
+    </div>
 
 </x-layouts::storefront>

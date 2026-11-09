@@ -38,7 +38,7 @@
             {{-- Header Actions --}}
             <nav
                 class="sf-header-actions"
-                aria-label="{{ __('storefront.navigation') }}"
+                aria-label="{{ __('lang.navigation') }}"
             >
 
                 {{-- Phone --}}
@@ -72,7 +72,7 @@
                         </span>
 
                         <span class="sf-header-contact-text">
-                            <small>{{ __('storefront.call_us') }}</small>
+                            <small>{{ __('lang.call_us') }}</small>
 
                             <strong dir="ltr">
                                 {{ $shop->phone }}
@@ -85,7 +85,7 @@
                 <div
                     class="sf-language-switcher"
                     role="group"
-                    aria-label="{{ __('storefront.language') }}"
+                    aria-label="{{ __('lang.language') }}"
                 >
                     <a
                         href="{{ route('language.switch', ['locale' => 'ar']) }}"
@@ -120,7 +120,7 @@
                         href="{{ route('storefront.cart.show', [
                             'shopSlug' => $shop->slug
                         ]) }}"
-                        aria-label="{{ __('storefront.shopping_cart') }} ({{ $cartCount }})"
+                        aria-label="{{ __('lang.shopping_cart') }} ({{ $cartCount }})"
                     >
                         <span class="sf-cart-icon" aria-hidden="true">
                             <svg
@@ -138,7 +138,7 @@
                         </span>
 
                         <span class="sf-cart-label">
-                            {{ __('storefront.cart') }}
+                            {{ __('lang.cart') }}
                         </span>
 
                         @if ($cartCount > 0)

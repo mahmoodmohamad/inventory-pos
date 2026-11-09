@@ -54,8 +54,8 @@
 
                     <flux:sidebar.item
                         icon="truck"
-                        :href="route('catalog.vehicles')"
-                        :current="request()->routeIs('catalog.vehicles')"
+                        :href="route('catalog.vehicle-catalog')"
+                        :current="request()->routeIs('catalog.vehicle-catalog')"
                         wire:navigate>
                         Vehicle Catalog
                     </flux:sidebar.item>

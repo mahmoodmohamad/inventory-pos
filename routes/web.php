@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
+use Livewire\Volt\Volt;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -35,11 +36,11 @@ Route::get('/language/{locale}', function (string $locale) {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function (): void {
-    Route::livewire('catalog/vehicle-variants', 'catalog.vehicle-variants')
+    Route::livewire('catalog/vehicle-variants', 'pages::catalog.vehicle-variants')
         ->can('manage-catalog')
         ->name('catalog.vehicle-variants');
 
-    Route::livewire('catalog/vehicles', 'catalog.vehicle-catalog')
+    Route::livewire('catalog/vehicles', 'pages::catalog.vehicle-catalog')
         ->can('manage-catalog')
         ->name('catalog.vehicles');
 });
@@ -146,14 +147,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 |
 */
 
-Route::middleware(['auth'])->group(function (): void {
-
-    Route::livewire('catalog/vehicle-variants', 'catalog.vehicle-variants')
-        ->name('catalog.vehicle-variants');
-
-    Route::livewire('catalog/vehicles', 'catalog.vehicle-catalog')
-        ->name('catalog.vehicles');
-});
 
 /*
 |--------------------------------------------------------------------------

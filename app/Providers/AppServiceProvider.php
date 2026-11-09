@@ -65,11 +65,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-catalog', fn (User $user): bool => $user->is_active
     && $user->hasVerifiedEmail()
     && in_array(
-        strtolower($user->email),
-        array_map('strtolower', config('app.platform_admins', [])),
+        $user->role,
+        [UserRole::Owner],
         true,
     )
-        );
+);
     }
 
     protected function registerBlueprintMacros(): void

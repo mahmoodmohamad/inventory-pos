@@ -61,11 +61,12 @@
     href="{{ asset('assets/css/storefront.css') }}?v={{ $cssVersion }}"
 >
 
-@if (app()->getLocale() === 'en')
-    <link
-        rel="stylesheet"
-        href="{{ asset('assets/css/en.css') }}?v={{ file_exists(public_path('assets/css/en.css')) ? filemtime(public_path('assets/css/en.css')) : time() }}"
-    >
+@php
+    $css = fn (string $f) => asset("assets/css/{$f}").'?v='.(is_file(public_path("assets/css/{$f}")) ? filemtime(public_path("assets/css/{$f}")) : 1);
+@endphp
+<link rel="stylesheet" href="{{ $css('storefront.css') }}">
+@if ($locale === 'en')
+    <link rel="stylesheet" href="{{ $css('en.css') }}">
 @endif
 
     {{-- Additional Page Styles --}}

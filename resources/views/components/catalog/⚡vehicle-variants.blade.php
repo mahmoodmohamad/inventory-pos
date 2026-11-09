@@ -12,6 +12,10 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Gate;
+use Flux\Flux;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
 
 new #[Title('Vehicle variants')] class extends Component
 {
@@ -78,7 +82,10 @@ new #[Title('Vehicle variants')] class extends Component
             'is_active' => ['boolean'],
         ];
     }
-
+public function boot(): void
+{
+    abort_unless(Gate::allows('manage-catalog'), 403);
+}
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -167,11 +174,27 @@ new #[Title('Vehicle variants')] class extends Component
         $this->is_active = true;
         $this->resetValidation();
     }
+public function delete(int $id): void
+{
+    $variant = VehicleVariant::query()->findOrFail($id);
 
+    if (DB::table('product_fitments')->where('vehicle_variant_id', $variant->id)->exists()) {
+        Flux::toast(variant: 'danger', text: 'Cannot delete a variant linked to products. Deactivate it instead.');
+
+        return;
+    }
+
+    $variant->delete();
+    Flux::toast(text: 'Deleted.');
+}
     /**
      * @return LengthAwarePaginator<int, VehicleVariant>
      */
-    #[Computed]
+#[Computed]
+public function models(): Collection
+{
+    return VehicleModel::query()->with('make')->orderBy('name')->get();
+}
     public function variants(): LengthAwarePaginator
     {
         return VehicleVariant::query()

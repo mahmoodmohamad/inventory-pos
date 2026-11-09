@@ -18,12 +18,10 @@ final class ProductSaveService
         private StockService $stock
     ) {}
 
-    public function save(
-        User $actor,
-        ProductForm $form,
-        ?Product $existing,
-        ?Product $source
-    ): Product {
+      public function save(User $actor, ProductForm $form, ?Product $existing, ?Product $source): Product
+  {
+      Gate::forUser($actor)->authorize($existing !== null ? 'update' : 'create', $existing ?? Product::class);
+
 
         // Authorization
         if ($existing !== null) {
@@ -136,4 +134,5 @@ final class ProductSaveService
                 : 'تعديل الكمية من شاشة المنتج'
         );
     }
+    
 }

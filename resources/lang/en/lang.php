@@ -184,5 +184,11 @@ return [
 
     'back_to_products' => 'Back to All Products',
     'present' => 'Present',
-
+'condition' => [
+        'new'         => 'New',
+        'used'        => 'Used',
+        'original'    => 'Original',
+        'aftermarket' => 'Aftermarket',
+        'refurbished' => 'Refurbished',
+    ],
 ];
