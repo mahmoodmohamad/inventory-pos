@@ -247,3 +247,13 @@ it('locks the sale and items after completion', function () {
     expect(fn () => $sale->items()->first()->delete())->toThrow(LogicException::class);
     expect(fn () => $sale->refresh()->update(['notes' => 'x']))->toThrow(LogicException::class);
 });
+it('records the actor on sale movements', function () {
+    [$shop, $user] = sc_shop();
+    $sale = sc_draft($user, [[sc_product($shop), '1']]);
+
+    app(SaleService::class)->complete($user, $sale, PaymentMethod::Cash, '100');
+
+    expect(
+        StockMovement::query()->where('type', StockMovementType::Sale->value)->first()->user_id
+    )->toBe($user->id);
+});

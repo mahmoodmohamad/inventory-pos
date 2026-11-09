@@ -10,7 +10,8 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds common part brands for every shop. Idempotent: keyed by (shop_id, name).
+ * Common part brands for default-shop only. Idempotent: keyed by (shop_id, name).
+ * demo-shop gets its own brands from DemoProductSeeder.
  */
 class BrandSeeder extends Seeder
 {
@@ -21,14 +22,16 @@ class BrandSeeder extends Seeder
 
     public function run(): void
     {
-        $tenant = app(TenantContext::class);
+        $shop = Shop::query()->where('slug', 'default-shop')->first();
 
-        Shop::query()->each(function (Shop $shop) use ($tenant): void {
-            $tenant->run($shop, function (): void {
-                foreach (self::BRANDS as $name) {
-                    Brand::query()->firstOrCreate(['name' => $name]);
-                }
-            });
+        if ($shop === null) {
+            return;
+        }
+
+        app(TenantContext::class)->run($shop, function (): void {
+            foreach (self::BRANDS as $name) {
+                Brand::query()->firstOrCreate(['name' => $name]);
+            }
         });
     }
 }

@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Storefront;
 
 use App\Models\Product;
-
 use App\Models\Shop;
-
 use App\Support\Money;
 
 /** يشتغل جوه سياق محل (ResolvePublicShop). الـ session بتخزّن id => qty بس. */
@@ -44,8 +42,13 @@ final class StorefrontCart
             return;
         }
 
-        $qty <= 0 ? $items[$productId] = null : $items[$productId] = min(self::MAX_QTY, $qty);
-        $this->put($shop, array_filter($items));
+      
+        if ($qty <= 0) {
+    unset($items[$productId]);
+} else {
+    $items[$productId] = min(self::MAX_QTY, $qty);
+}
+$this->put($shop, $items);
     }
 
     public function clear(Shop $shop): void

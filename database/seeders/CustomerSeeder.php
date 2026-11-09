@@ -10,23 +10,23 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds a few generic customers per shop. Idempotent: keyed by phone.
+ * Generic customers for default-shop only. Idempotent: keyed by phone (per shop).
+ * demo-shop customers come from DemoCustomerSeeder.
  */
 class CustomerSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = app(TenantContext::class);
+        $shop = Shop::query()->where('slug', 'default-shop')->first();
 
-        Shop::query()->each(function (Shop $shop) use ($tenant): void {
-            $tenant->run($shop, function (): void {
-                foreach ($this->customers() as $row) {
-                    Customer::query()->updateOrCreate(
-                        ['phone' => $row['phone']],
-                        $row,
-                    );
-                }
-            });
+        if ($shop === null) {
+            return;
+        }
+
+        app(TenantContext::class)->run($shop, function (): void {
+            foreach ($this->customers() as $row) {
+                Customer::query()->updateOrCreate(['phone' => $row['phone']], $row);
+            }
         });
     }
 

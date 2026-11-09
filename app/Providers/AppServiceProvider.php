@@ -38,7 +38,6 @@ class AppServiceProvider extends ServiceProvider
     protected function registerGates(): void
     {
 
-
         Gate::define('view-financials', fn (User $user): bool => $user->is_active
             && in_array(
                 $user->role,
@@ -70,7 +69,7 @@ class AppServiceProvider extends ServiceProvider
         array_map('strtolower', config('app.platform_admins', [])),
         true,
     )
-);
+        );
     }
 
     protected function registerBlueprintMacros(): void

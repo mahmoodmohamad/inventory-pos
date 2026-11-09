@@ -7,7 +7,8 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-
+use App\Models\Purchase;
+use App\Models\Supplier;
 beforeEach(function () {
     $this->shopA = Shop::factory()->create();
     $this->shopB = Shop::factory()->create();
@@ -76,4 +77,23 @@ it('builds a composite tenant foreign key through the macro', function () {
 
     expect($sql)->toContain('foreign key (`shop_id`, `category_id`) references `categories` (`shop_id`, `id`)')
         ->and($sql)->not->toContain('cascade');
+});
+
+it('denies a shopless user on role-based policies', function () {
+    $user = User::factory()->create(['shop_id' => null, 'role' => UserRole::Owner]);
+
+    expect(Gate::forUser($user)->allows('viewAny', Supplier::class))->toBeFalse()
+        ->and(Gate::forUser($user)->allows('viewAny', Purchase::class))->toBeFalse()
+        ->and(Gate::forUser($user)->allows('create', Category::class))->toBeFalse();
+});
+it('denies an inactive user from viewing a record of their own shop', function () {
+    $user = userWithRole($this->shopA, UserRole::Owner, ['is_active' => false]);
+
+    expect(Gate::forUser($user)->allows('view', $this->catA))->toBeFalse();
+});it('denies a shopless user on role-based policies', function () {
+    $user = User::factory()->create(['shop_id' => null, 'role' => UserRole::Owner]);
+
+    expect(Gate::forUser($user)->allows('viewAny', Supplier::class))->toBeFalse()
+        ->and(Gate::forUser($user)->allows('viewAny', Purchase::class))->toBeFalse()
+        ->and(Gate::forUser($user)->allows('create', Category::class))->toBeFalse();
 });

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\UserRole;
@@ -11,7 +13,12 @@ use Illuminate\Support\Str;
 final class ShopRegistrationService
 {
     /**
-     * @param  array{shop_name: string, name: string, email: string, password: string}  $data
+     * @param array{
+     *     shop_name: string,
+     *     name: string,
+     *     email: string,
+     *     password: string
+     * } $data
      */
     public function register(array $data): User
     {
@@ -19,6 +26,10 @@ final class ShopRegistrationService
             $shop = Shop::create([
                 'name' => $data['shop_name'],
                 'slug' => $this->uniqueSlug($data['shop_name']),
+                'settings' => [
+                    'allow_negative_stock' => false,
+                    'storefront_enabled' => false,
+                ],
             ]);
 
             $user = new User([
@@ -27,12 +38,13 @@ final class ShopRegistrationService
                 'password' => $data['password'],
             ]);
 
-            // role/shop_id مش fillable عمدًا، فبنحطهم يدويًا من الكود بس
             $user->forceFill([
                 'shop_id' => $shop->id,
                 'role' => UserRole::Owner,
                 'is_active' => true,
-            ])->save();
+            ]);
+
+            $user->save();
 
             return $user;
         });
@@ -40,12 +52,16 @@ final class ShopRegistrationService
 
     private function uniqueSlug(string $name): string
     {
-        // الاسم العربي ممكن يطلع slug فاضي، فبنحط fallback
-        $base = Str::limit(Str::slug($name) ?: 'shop', 40, '');
+        // الاسم العربي ممكن ينتج slug فارغ، لذلك نستخدم قيمة بديلة.
+        $base = Str::limit(
+            Str::slug($name) ?: 'shop',
+            40,
+            '',
+        );
 
         do {
             $slug = $base.'-'.Str::lower(Str::random(6));
-        } while (Shop::where('slug', $slug)->exists());
+        } while (Shop::query()->where('slug', $slug)->exists());
 
         return $slug;
     }

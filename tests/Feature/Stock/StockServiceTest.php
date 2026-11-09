@@ -199,3 +199,11 @@ it('fails closed without tenant context', function () {
 
     $this->stock->purchase($this->product->id, 1, 10);
 })->throws(MissingTenantException::class);
+it('does not allow negative stock when shop settings are empty', function () {
+    $shop = Shop::factory()->create(['settings' => null]);
+    $this->tenant->set($shop);
+    $product = Product::factory()->for($shop)->create();
+
+    expect(fn () => $this->stock->sale($product, 1))
+        ->toThrow(InsufficientStockException::class);
+});

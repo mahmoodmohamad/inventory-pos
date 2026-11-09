@@ -147,7 +147,6 @@ return [
     'next' => 'التالي',
     'page_of' => 'صفحة :current من :last',
 
-
     'breadcrumb' => 'مسار التنقل',
     'home' => 'الرئيسية',
 

@@ -28,14 +28,11 @@ class DemoSupplierSeeder extends Seeder
 
         app(TenantContext::class)->run($shop, function () use ($shop): void {
             foreach ($this->suppliers() as $row) {
-                Supplier::query()->updateOrCreate(
-                    [
-                        'shop_id' => $shop->id,
-                        'phone' => $row['phone'],
-                    ],
-                    $row,
-                );
-            }
+    Supplier::query()->updateOrCreate(
+        ['phone' => $row['phone']],
+        $row,
+    );
+}
         });
     }
 

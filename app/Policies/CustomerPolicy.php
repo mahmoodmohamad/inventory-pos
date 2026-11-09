@@ -9,16 +9,10 @@ use Illuminate\Auth\Access\Response;
 
 class CustomerPolicy extends ShopPolicy
 {
-    public function viewAny(User $user): bool
-    {
-        return $user->is_active
-            && $user->shop_id !== null
-            && in_array($user->role, [
-                UserRole::Owner,
-                UserRole::Manager,
-                UserRole::Cashier,
-            ], true);
-    }
+   public function viewAny(User $user): bool
+{
+    return $this->hasRole($user, UserRole::Owner, UserRole::Manager, UserRole::Cashier);
+}
 
     public function view(User $user, Customer $customer): Response
     {
@@ -31,5 +25,10 @@ class CustomerPolicy extends ShopPolicy
         return $this->hasRole($user, UserRole::Owner, UserRole::Manager, UserRole::Cashier)
             ? Response::allow()
             : Response::deny();
+    }
+
+    public function collect(User $user, Customer $customer): Response
+    {
+        return $this->view($user, $customer);
     }
 }

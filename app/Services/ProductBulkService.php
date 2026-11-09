@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\SaleStatus;
 use App\Models\Product;
+use App\Models\SaleItem;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +30,9 @@ final class ProductBulkService
 
     public const ACTIONS = [self::ACTIVATE, self::DEACTIVATE, self::DELETE];
 
+    /** أقصى عدد منتجات في عملية واحدة (بيحمي من قفل صفوف كتير). */
+    public const MAX_IDS = 500;
+
     /**
      * @param  list<int>  $ids
      * @return array{done: int, skipped: int}
@@ -38,16 +43,25 @@ final class ProductBulkService
             throw new InvalidArgumentException("Unknown bulk action [{$action}].");
         }
 
-        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $ids),
+            fn (int $id) => $id > 0,
+        )));
 
         if ($ids === []) {
             return ['done' => 0, 'skipped' => 0];
         }
 
-        $done = 0;
-        $skipped = 0;
+        if (count($ids) > self::MAX_IDS) {
+            throw new InvalidArgumentException(__('الحد الأقصى :max منتج في العملية الواحدة.', ['max' => self::MAX_IDS]));
+        }
 
-        DB::transaction(function () use ($actor, $action, $ids, &$done, &$skipped): void {
+        if (! $actor->is_active || $actor->shop_id === null) {
+            return ['done' => 0, 'skipped' => count($ids)];
+        }
+
+        // النتيجة بترجع من الـ closure نفسه، فمفيش عدّادات بتتراكم لو الـ transaction اتعادت.
+        return DB::transaction(function () use ($actor, $action, $ids): array {
             // الـ ShopScope بيضمن إن الـ ids الغريبة مش هترجع أصلًا.
             // lockForUpdate بيمنع StockService من تغيير الرصيد بين الفحص والحذف،
             // والترتيب بالـ id بيقلل احتمال الـ deadlock بين عمليتين جماعيتين.
@@ -58,27 +72,38 @@ final class ProductBulkService
                 ->get();
 
             // ids مش لاقيينها (محل تاني أو اتحذفت) بتتحسب متخطية
-            $skipped += count($ids) - $products->count();
+            $done = 0;
+            $skipped = count($ids) - $products->count();
+
+            $inDraft = $action === self::DELETE
+                ? $this->idsInDraftSales($products->modelKeys())
+                : [];
 
             foreach ($products as $product) {
-                if ($this->handle($actor, $action, $product)) {
+                if ($this->handle($actor, $action, $product, $inDraft)) {
                     $done++;
                 } else {
                     $skipped++;
                 }
             }
-        });
 
-        return ['done' => $done, 'skipped' => $skipped];
+            return ['done' => $done, 'skipped' => $skipped];
+        });
     }
 
-    private function handle(User $actor, string $action, Product $product): bool
+    /**
+     * @param  array<int, true>  $inDraft  ids المنتجات الموجودة في مسودات فواتير
+     */
+    private function handle(User $actor, string $action, Product $product, array $inDraft): bool
     {
         $gate = Gate::forUser($actor);
 
         if ($action === self::DELETE) {
-            // مينفعش نحذف منتج رصيده مش صفر
-            if (! $gate->allows('delete', $product) || ! $this->hasZeroStock($product)) {
+            // مينفعش نحذف منتج رصيده مش صفر أو موجود في مسودة فاتورة
+            if (! $gate->allows('delete', $product)
+                || ! $this->hasZeroStock($product)
+                || isset($inDraft[$product->id])
+            ) {
                 return false;
             }
 
@@ -91,7 +116,14 @@ final class ProductBulkService
             return false;
         }
 
-        $product->update(['is_active' => $action === self::ACTIVATE]);
+        $target = $action === self::ACTIVATE;
+
+        // الحالة مطابقة أصلًا: نجاح من غير كتابة
+        if ($product->is_active === $target) {
+            return true;
+        }
+
+        $product->update(['is_active' => $target]);
 
         return true;
     }
@@ -99,5 +131,25 @@ final class ProductBulkService
     private function hasZeroStock(Product $product): bool
     {
         return Money::cmp($product->stock_qty, '0', 3) === 0;
+    }
+
+    /**
+     * @param  array<int, int|string>  $productIds
+     * @return array<int, true>
+     */
+    private function idsInDraftSales(array $productIds): array
+    {
+        if ($productIds === []) {
+            return [];
+        }
+
+        // الـ ShopScope متطبق على SaleItem و Sale
+        return SaleItem::query()
+            ->whereIn('product_id', $productIds)
+            ->whereHas('sale', fn ($q) => $q->where('status', SaleStatus::Draft->value))
+            ->distinct()
+            ->pluck('product_id')
+            ->mapWithKeys(fn ($id) => [(int) $id => true])
+            ->all();
     }
 }

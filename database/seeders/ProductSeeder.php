@@ -13,40 +13,42 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds generic catalog products (non-demo) for every shop.
- * Barcode is the idempotency key. Stock stays 0 — opening balances come via
- * StockMovementSeeder / StockService.
+ * Generic catalog products for default-shop only. Barcode is the idempotency key.
+ * Stock stays 0; opening balances come via StockMovementSeeder / StockService.
+ * Needs BrandSeeder and CategorySeeder first.
  */
 class ProductSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = app(TenantContext::class);
+        $shop = Shop::query()->where('slug', 'default-shop')->first();
 
-        Shop::query()->each(function (Shop $shop) use ($tenant): void {
-            $tenant->run($shop, function (): void {
-                $brands = Brand::query()->pluck('id', 'name');
-                $categories = Category::query()->whereNull('parent_id')->pluck('id', 'name');
+        if ($shop === null) {
+            return;
+        }
 
-                foreach ($this->products() as $row) {
-                    Product::query()->updateOrCreate(
-                        ['barcode' => $row['barcode']],
-                        [
-                            'name' => $row['name'],
-                            'part_number' => $row['part_number'],
-                            'oem_number' => $row['oem_number'] ?? null,
-                            'condition' => $row['condition'],
-                            'unit' => 'piece',
-                            'category_id' => $categories[$row['category']] ?? null,
-                            'brand_id' => $brands[$row['brand']] ?? null,
-                            'retail_price' => $row['retail'],
-                            'wholesale_price' => $row['wholesale'],
-                            'min_stock_alert' => $row['min'],
-                            'is_active' => true,
-                        ],
-                    );
-                }
-            });
+        app(TenantContext::class)->run($shop, function (): void {
+            $brands = Brand::query()->pluck('id', 'name');
+            $categories = Category::query()->whereNull('parent_id')->pluck('id', 'name');
+
+            foreach ($this->products() as $row) {
+                Product::query()->updateOrCreate(
+                    ['barcode' => $row['barcode']],
+                    [
+                        'name' => $row['name'],
+                        'part_number' => $row['part_number'],
+                        'oem_number' => $row['oem_number'] ?? null,
+                        'condition' => $row['condition'],
+                        'unit' => 'piece',
+                        'category_id' => $categories[$row['category']] ?? null,
+                        'brand_id' => $brands[$row['brand']] ?? null,
+                        'retail_price' => $row['retail'],
+                        'wholesale_price' => $row['wholesale'],
+                        'min_stock_alert' => $row['min'],
+                        'is_active' => true,
+                    ],
+                );
+            }
         });
     }
 

@@ -9,16 +9,11 @@ use Illuminate\Auth\Access\Response;
 
 class SalePolicy extends ShopPolicy
 {
-    public function viewAny(User $user): bool
-    {
-        return $user->is_active
-            && $user->shop_id !== null
-            && in_array($user->role, [
-                UserRole::Owner,
-                UserRole::Manager,
-                UserRole::Cashier,
-            ], true);
-    }
+  
+public function viewAny(User $user): bool
+{
+    return $this->hasRole($user, UserRole::Owner, UserRole::Manager, UserRole::Cashier);
+}
 
     public function view(User $user, Sale $sale): Response
     {

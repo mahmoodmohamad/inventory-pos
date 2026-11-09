@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\ProductCondition;
@@ -8,23 +10,34 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
-use Illuminate\Http\Request;
 use App\Models\VehicleVariant;
 use App\Services\Storefront\StorefrontCatalog;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class StorefrontController extends Controller
 {
     public function index(StorefrontSearchRequest $request, StorefrontCatalog $catalog): View
     {
-        /** @var Shop $shop */
-        $shop = $request->attributes->get('storefront_shop');
-        $filters = $request->validated();
+        $shop = $this->shop($request);
 
+        // make → model → variant: كل مستوى بيتقبل بس لو تابع للمستوى اللي فوقه.
         $makes = $catalog->makes();
-        $models = $catalog->modelsOf((int) ($filters['make'] ?? 0));
-        $variants = $catalog->variantsOf((int) ($filters['model'] ?? 0));
+        $makeId = $this->selectedId($makes, $request->validated('make'));
+
+        $models = $catalog->modelsOf($makeId);
+        $modelId = $this->selectedId($models, $request->validated('model'));
+
+        $variants = $catalog->variantsOf($modelId);
+        $variantId = $this->selectedId($variants, $request->validated('variant'));
+
+        $filters = [
+            ...$request->validated(),
+            'make' => $makeId ?: null,
+            'model' => $modelId ?: null,
+            'variant' => $variantId ?: null,
+        ];
 
         return view('storefront.index', [
             'shop' => $shop,
@@ -35,8 +48,43 @@ class StorefrontController extends Controller
             'variants' => $variants,
             'conditions' => ProductCondition::cases(),
             'carLabel' => $this->carLabel($filters, $makes, $models, $variants),
-            'whatsapp' => $this->whatsappNumber($shop->phone),
+            'whatsapp' => $shop->whatsappNumber(),
         ]);
+    }
+
+    public function show(Request $request, string $shopSlug, string $productId): View
+    {
+        $shop = $this->shop($request);
+
+        $product = Product::query()
+            ->where('is_active', true)
+            ->with(['brand', 'category', 'fitments.variant.vehicleModel.make'])
+            ->findOrFail($productId);
+
+        return view('storefront.show', [
+            'shop' => $shop,
+            'product' => $product,
+            'fitments' => $product->fitments,
+            'inStock' => (float) $product->stock_qty > 0,
+            'whatsapp' => $shop->whatsappNumber(),
+        ]);
+    }
+
+    private function shop(Request $request): Shop
+    {
+        return $request->attributes->get('storefront_shop');
+    }
+
+    /**
+     * يرجّع الـ id المطلوب لو موجود في الخيارات المسموحة، وإلا 0.
+     *
+     * @param  Collection<int, VehicleMake|VehicleModel|VehicleVariant>  $options
+     */
+    private function selectedId(Collection $options, mixed $requested): int
+    {
+        $id = (int) $requested;
+
+        return $id > 0 && $options->contains('id', $id) ? $id : 0;
     }
 
     /**
@@ -58,42 +106,9 @@ class StorefrontController extends Controller
         }
 
         if ($variant = $variants->firstWhere('id', (int) ($filters['variant'] ?? 0))) {
-            $parts[] = $variant->year_from.'–'.($variant->year_to ?? 'الآن');
+            $parts[] = $variant->year_from.'–'.($variant->year_to ?? __('lang.present'));
         }
 
         return $parts === [] ? null : implode(' ', $parts);
     }
-
-    /** رقم مصري محلي (01xxxxxxxxx) إلى صيغة wa.me الدولية، أو null لو الرقم غير صالح. */
-    private function whatsappNumber(?string $phone): ?string
-    {
-        $digits = (string) preg_replace('/\D+/', '', (string) $phone);
-
-        if (str_starts_with($digits, '00')) {
-            $digits = substr($digits, 2);
-        } elseif (str_starts_with($digits, '0')) {
-            $digits = '20'.substr($digits, 1);
-        }
-
-        return strlen($digits) >= 10 ? $digits : null;
-    }
-
-    public function show(Request $request, string $shopSlug, string $productId): View
-{
-    /** @var Shop $shop */
-    $shop = $request->attributes->get('storefront_shop');
-
-    $product = Product::query()
-        ->where('is_active', true)
-        ->with(['brand', 'category', 'fitments.variant.vehicleModel.make'])
-        ->findOrFail($productId);
-
-    return view('storefront.show', [
-        'shop' => $shop,
-        'product' => $product,
-        'fitments' => $product->fitments,
-        'inStock' => (float) $product->stock_qty > 0,
-        'whatsapp' => $shop->whatsappNumber(),
-    ]);
-}
 }

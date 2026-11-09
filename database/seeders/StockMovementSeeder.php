@@ -13,37 +13,41 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 
 /**
- * Opening balances for the seeded products, via StockService (proper WAC).
+ * Opening balances for default-shop's generic products, via StockService (proper WAC).
  * Skips products that already have an Opening movement. Idempotent.
+ * demo-shop balances come from DemoStockSeeder.
  */
 class StockMovementSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = app(TenantContext::class);
+        $shop = Shop::query()->where('slug', 'default-shop')->first();
 
-        Shop::query()->each(function (Shop $shop) use ($tenant): void {
-            $tenant->run($shop, function (): void {
-                $stock = app(StockService::class);
+        if ($shop === null) {
+            return;
+        }
 
-                foreach ($this->balances() as $b) {
-                    $product = Product::query()->where('barcode', $b['barcode'])->first();
-                    if ($product === null) {
-                        continue;
-                    }
+        app(TenantContext::class)->run($shop, function (): void {
+            $stock = app(StockService::class);
 
-                    $exists = StockMovement::query()
-                        ->where('product_id', $product->id)
-                        ->where('type', StockMovementType::Opening)
-                        ->exists();
+            foreach ($this->balances() as $b) {
+                $product = Product::query()->where('barcode', $b['barcode'])->first();
 
-                    if ($exists) {
-                        continue;
-                    }
-
-                    $stock->openingBalance($product, $b['qty'], $b['cost'], 'Opening balance');
+                if ($product === null) {
+                    continue;
                 }
-            });
+
+                $exists = StockMovement::query()
+                    ->where('product_id', $product->id)
+                    ->where('type', StockMovementType::Opening)
+                    ->exists();
+
+                if ($exists) {
+                    continue;
+                }
+
+                $stock->openingBalance($product, $b['qty'], $b['cost'], 'Opening balance');
+            }
         });
     }
 

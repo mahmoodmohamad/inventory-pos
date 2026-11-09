@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property int $id
  * @property int $shop_id
+ * @property bool $is_active
  * @property ProductCondition $condition
  * @property ProductUnit $unit
  * @property numeric-string $retail_price

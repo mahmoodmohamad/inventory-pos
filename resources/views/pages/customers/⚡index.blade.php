@@ -12,6 +12,10 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use App\Enums\PaymentMethod;
+use App\Services\Customers\CustomerPaymentService;
+use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Livewire\WithPagination;
 
 new #[Title('حسابات العملاء')] class extends Component
@@ -36,7 +40,10 @@ new #[Title('حسابات العملاء')] class extends Component
     /** all | debit | credit */
     #[Url(as: 'type')]
     public string $entryType = 'all';
-
+public string $payAmount = '';
+public string $payMethod = 'cash';
+public string $payReference = '';
+public string $payNotes = '';
     public function mount(): void
     {
         $this->authorize('viewAny', Customer::class);
@@ -285,7 +292,71 @@ new #[Title('حسابات العملاء')] class extends Component
             2,
         );
     }
+public function openPay(int $id): void
+{
+    $customer = Customer::query()->findOrFail($id);
+    $this->authorize('collect', $customer);
 
+    $this->reset('payAmount', 'payReference', 'payNotes');
+    $this->payMethod = 'cash';
+    $this->resetValidation();
+    $this->selectedCustomerId = (string) $customer->id;
+    unset($this->selectedCustomer);
+
+    Flux::modal('customer-pay')->show();
+}
+
+public function fillPayFull(): void
+{
+    $selected = $this->selectedCustomer;
+
+    if ($selected !== null && bccomp($this->balanceOf($selected), '0', 2) > 0) {
+        $this->payAmount = $this->balanceOf($selected);
+    }
+}
+
+public function savePay(): void
+{
+    $selected = $this->selectedCustomer;
+    abort_if($selected === null, 404);
+
+    $this->validate([
+        'payAmount' => ['required', 'regex:/\A\d{1,10}(?:\.\d{1,2})?\z/'],
+        'payMethod' => ['required', 'in:'.implode(',', array_column(PaymentMethod::cases(), 'value'))],
+        'payReference' => ['nullable', 'string', 'max:100'],
+        'payNotes' => ['nullable', 'string', 'max:255'],
+    ], [
+        'payAmount.regex' => __('المبلغ بحد أقصى منزلتين عشريتين.'),
+    ]);
+
+    try {
+        app(CustomerPaymentService::class)->receive(
+            Auth::user(),
+            $selected->id,
+            trim($this->payAmount),
+            PaymentMethod::from($this->payMethod),
+            $this->payReference,
+            $this->payNotes,
+        );
+    } catch (\InvalidArgumentException|\DomainException $e) {
+        $this->addError('payAmount', $e->getMessage());
+
+        return;
+    }
+
+    Flux::modal('customer-pay')->close();
+    $this->reset('payAmount', 'payReference', 'payNotes');
+    $this->resetPage('activityPage');
+    unset($this->customers, $this->selectedCustomer, $this->activity, $this->stats);
+    Flux::toast(variant: 'success', text: __('تم تسجيل الدفعة.'));
+}
+
+/** @return array<int, PaymentMethod> */
+#[Computed]
+public function methods(): array
+{
+    return PaymentMethod::cases();
+}
     /**
      * @param  Builder<Customer>  $query
      * @return Builder<Customer>
@@ -610,7 +681,7 @@ new #[Title('حسابات العملاء')] class extends Component
         </section>
 
         {{-- ============ Account detail ============ --}}
-        <section class="ca-detail" aria-label="{{ __('تفاصيل الحساب') }}">
+               <section class="ca-detail" aria-label="{{ __('تفاصيل الحساب') }}">
             @if ($selected)
                 @php
                     $balance = $balanceOf($selected);
@@ -687,14 +758,22 @@ new #[Title('حسابات العملاء')] class extends Component
                                 </div>
                             </div>
 
-                            @if ($debit > 0)
-                                <div class="ca-pay">
-                                    <div class="ca-pay-top"><span>{{ __('نسبة السداد') }}</span><span class="ca-num">{{ $paidPct }}%</span></div>
-                                    <div class="ca-bar" role="progressbar" aria-valuenow="{{ $paidPct }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ __('نسبة السداد') }}">
-                                        <div style="width: {{ $paidPct }}%"></div>
+                            <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem">
+                                @if ($debit > 0)
+                                    <div class="ca-pay">
+                                        <div class="ca-pay-top"><span>{{ __('نسبة السداد') }}</span><span class="ca-num">{{ $paidPct }}%</span></div>
+                                        <div class="ca-bar" role="progressbar" aria-valuenow="{{ $paidPct }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ __('نسبة السداد') }}">
+                                            <div style="width: {{ $paidPct }}%"></div>
+                                        </div>
                                     </div>
-                                </div>
-                            @endif
+                                @endif
+
+                                @if ($isOwing)
+                                    <flux:button variant="primary" icon="banknotes" wire:click="openPay({{ $selected->id }})">
+                                        {{ __('تحصيل دفعة') }}
+                                    </flux:button>
+                                @endif
+                            </div>
                         </div>
 
                         <dl class="ca-totals">
@@ -793,5 +872,46 @@ new #[Title('حسابات العملاء')] class extends Component
                 </div>
             @endif
         </section>
-    </div>
-</div>
+    </div>{{-- /.ca-layout --}}
+
+    {{-- ============ Collect payment modal (outside the grid) ============ --}}
+    <flux:modal name="customer-pay" class="w-full max-w-md">
+        @php $payBalance = $selected ? $balanceOf($selected) : '0.00'; @endphp
+
+        <form wire:submit="savePay" class="space-y-5">
+            <div>
+                <flux:heading size="lg">{{ __('تحصيل دفعة من العميل') }}</flux:heading>
+                @if ($selected)
+                    <flux:text class="mt-1">{{ $selected->name }}</flux:text>
+                @endif
+            </div>
+
+            <div class="rounded-lg bg-amber-50 px-3 py-2 text-sm dark:bg-amber-950/20">
+                {{ __('المطلوب من العميل') }}:
+                <strong class="ca-num">{{ $money($payBalance) }} {{ $currency }}</strong>
+            </div>
+
+            <div class="flex items-end gap-2">
+                <div class="flex-1">
+                    <flux:input wire:model="payAmount" type="number" step="0.01" min="0" dir="ltr" :label="__('المبلغ')" required />
+                </div>
+                <flux:button type="button" variant="filled" wire:click="fillPayFull">{{ __('المتبقي كامل') }}</flux:button>
+            </div>
+            @error('payAmount') <flux:text class="text-sm text-red-600">{{ $message }}</flux:text> @enderror
+
+            <flux:select wire:model="payMethod" :label="__('طريقة الدفع')">
+                @foreach ($this->methods as $m)
+                    <flux:select.option value="{{ $m->value }}">{{ $m->label() }}</flux:select.option>
+                @endforeach
+            </flux:select>
+
+            <flux:input wire:model="payReference" dir="ltr" :label="__('رقم مرجعي (اختياري)')" />
+            <flux:input wire:model="payNotes" :label="__('ملاحظات (اختياري)')" />
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button type="button" variant="ghost">{{ __('إلغاء') }}</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="savePay">{{ __('تسجيل الدفعة') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+</div>{{-- /.ca --}}

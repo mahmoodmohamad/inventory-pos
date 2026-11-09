@@ -9,11 +9,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
-/**
- * ترقيم متسلسل لكل محل. لازم يتنادى جوه نفس الـ transaction بتاعة إنشاء الفاتورة،
- * فلو الإنشاء فشل الرقم بيرجع (مفيش فجوات من الفشل).
- * المسودات المحذوفة بتسيب فجوة، وده معروف ومقبول.
- */
+
 final class InvoiceNumberGenerator
 {
     public function next(string $key = 'sales_invoice'): int

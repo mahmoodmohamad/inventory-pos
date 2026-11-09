@@ -1,6 +1,7 @@
 
 <?php
 
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\StorefrontCartController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Middleware\ResolvePublicShop;
@@ -8,7 +9,6 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
-use App\Http\Controllers\HomeController;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -21,14 +21,13 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', [HomeController::class, 'home'])->name('home');
-Route::get('/language/{locale}', function ($locale) {
-    abort_unless(in_array($locale, ['ar', 'en']), 404);
-
+Route::get('/language/{locale}', function (string $locale) {
     session(['locale' => $locale]);
 
     return redirect()->back();
-})->name('language.switch');
-
+})
+    ->whereIn('locale', ['ar', 'en'])
+    ->name('language.switch');
 
 /*
 |--------------------------------------------------------------------------
